@@ -47,7 +47,7 @@
     <section>
       <h2 class="text-lg font-semibold text-cyan-300 mb-4">✍️ 請簽名確認</h2>
       <div class="flex justify-center">
-        <canvas id="signature" width="320" height="120" class="border-2 border-cyan-500 bg-gray-700 rounded-xl shadow-md"></canvas>
+        <canvas id="signature" width="320" height="120" class="border-2 border-cyan-500 bg-gray-700 rounded-xl shadow-md touch-manipulation"></canvas>
       </div>
       <div class="flex justify-center gap-4 mt-5">
         <button onclick="clearPad()" class="bg-gray-600 hover:bg-gray-500 text-white px-5 py-2 rounded-full shadow">清除</button>
@@ -75,6 +75,7 @@
     const ctx = canvas.getContext('2d');
     let drawing = false;
 
+    // 滑鼠支援
     canvas.addEventListener('mousedown', e => {
       drawing = true;
       ctx.beginPath();
@@ -90,6 +91,33 @@
     });
     canvas.addEventListener('mouseup', () => drawing = false);
     canvas.addEventListener('mouseleave', () => drawing = false);
+
+    // 觸控支援
+    canvas.addEventListener('touchstart', e => {
+      e.preventDefault();
+      drawing = true;
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', e => {
+      if (!drawing) return;
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      ctx.lineTo(x, y);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', () => drawing = false);
+    canvas.addEventListener('touchcancel', () => drawing = false);
 
     function clearPad() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
