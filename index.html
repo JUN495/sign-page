@@ -267,7 +267,7 @@ function clearPad() {
 function submitSignature() {
   const c = document.getElementById('signature');
   // ⭐ 針對手機簽名過大的問題 → 強制縮小 50%
-  const dataUrl = downscaleCanvas(c, 0.5);
+  const dataUrl = downscaleCanvas(c, 0.3);
 
   fetch(`${api}/`, {
     method: 'POST',
