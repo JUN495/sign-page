@@ -58,6 +58,7 @@
     let currentPassword = "";
     let currentDepartment = "";
     let currentFolderId = "";
+    let currentPdfList = [];
 
     function login() {
       const employeeId = document.getElementById("employeeId").value.trim();
@@ -117,9 +118,10 @@
       fetch(`${gasUrl}?action=getPdfList&folderId=${currentFolderId}`)
         .then(res => res.json())
         .then(data => {
+          currentPdfList = data.files || [];
           const fileList = document.getElementById("fileList");
           fileList.innerHTML = "";
-          data.files.forEach(file => {
+          currentPdfList.forEach(file => {
             const tr = document.createElement("tr");
             const td1 = document.createElement("td");
             const td2 = document.createElement("td");
@@ -134,7 +136,6 @@
         });
     }
 
-    // 簽名功能
     const canvas = document.getElementById("signature");
     const ctx = canvas.getContext("2d");
     let drawing = false;
@@ -166,7 +167,8 @@
         body: new URLSearchParams({
           action: "generateSignedPdf",
           folderId: currentFolderId,
-          dataUrl: dataUrl
+          dataUrl: dataUrl,
+          fileList: JSON.stringify(currentPdfList)
         })
       })
       .then(res => res.json())
