@@ -3,150 +3,95 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>管理辦法簽核系統</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/tsparticles@2.11.1/tsparticles.bundle.min.js"></script>
+  <title>登入 - 數位簽核系統測試</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/primer/16.2.0/build.css">
   <style>
     body {
+      background: #f6f8fa;
       font-family: 'Noto Sans TC', sans-serif;
-      margin: 0;
-      background-color: #0f172a;
+      padding: 20px;
     }
-    #tsparticles {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      z-index: -1;
+    .container {
+      max-width: 400px;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 6px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .input-group {
+      margin-bottom: 15px;
+    }
+    .input-group label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    .btn {
+      width: 100%;
+      padding: 10px;
+      background: #2da44e;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background: #22863a;
+    }
+    #message {
+      margin-top: 10px;
+      color: red;
     }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center text-white">
-  <div id="tsparticles"></div>
-
-  <div class="w-full max-w-2xl px-6 py-10 bg-gray-800 rounded-3xl shadow-2xl border border-gray-700 backdrop-blur-sm bg-opacity-90">
-    <h1 class="text-3xl font-extrabold text-center text-cyan-400 mb-8 tracking-wide">📂 管理辦法簽核系統</h1>
-
-    <section class="mb-10">
-      <h2 class="text-lg font-semibold text-cyan-300 mb-4">📋 文件清單</h2>
-      <ul id="fileList" class="space-y-3">
-        <li class="bg-gray-700 border border-gray-600 rounded-lg shadow p-4 text-sm text-white animate-fade-in">載入中...</li>
-      </ul>
-    </section>
-
-    <section>
-      <h2 class="text-lg font-semibold text-cyan-300 mb-4">✍️ 請簽名確認</h2>
-      <div class="flex justify-center">
-        <canvas id="signature" width="320" height="120" class="border-2 border-cyan-500 bg-gray-700 rounded-xl shadow-md touch-manipulation"></canvas>
-      </div>
-      <div class="flex justify-center gap-4 mt-5">
-        <button onclick="clearPad()" class="bg-gray-600 hover:bg-gray-500 text-white px-5 py-2 rounded-full shadow">清除</button>
-        <button onclick="submitSignature()" class="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white px-6 py-2 rounded-full font-semibold shadow-lg transition duration-300">送出簽名</button>
-      </div>
-      <p id="result" class="mt-6 text-center text-green-400 font-semibold"></p>
-    </section>
+<body>
+  <div class="container">
+    <h2>登入系統</h2>
+    <div class="input-group">
+      <label for="username">使用者帳號</label>
+      <input type="text" id="username" placeholder="請輸入帳號">
+    </div>
+    <div class="input-group">
+      <label for="password">密碼</label>
+      <input type="password" id="password" placeholder="請輸入密碼">
+    </div>
+    <button class="btn" onclick="login()">登入</button>
+    <p id="message"></p>
   </div>
-
+  
   <script>
-    // 粒子背景動畫初始化
-    tsParticles.load("tsparticles", {
-      background: { color: "#0f172a" },
-      particles: {
-        number: { value: 60 },
-        color: { value: "#3b82f6" },
-        shape: { type: "circle" },
-        opacity: { value: 0.5 },
-        size: { value: 2 },
-        move: { enable: true, speed: 1 }
-      },
-      interactivity: {
-        events: { onHover: { enable: true, mode: "repulse" } },
-        modes: { repulse: { distance: 100 } }
-      },
-      fullScreen: { enable: false }
-    });
-
-    const sampleFiles = [
-      { name: "冷鏈管理辦法.pdf", date: "2025/03/01 08:00" },
-      { name: "人資作業流程.pdf", date: "2025/03/05 14:30" },
-    ];
-
-    const fileList = document.getElementById('fileList');
-    fileList.innerHTML = '';
-    sampleFiles.forEach(file => {
-      const li = document.createElement('li');
-      li.className = "bg-gray-700 border border-gray-600 rounded-lg shadow p-4 text-sm text-white animate-fade-in";
-      li.textContent = `${file.name}（上傳時間：${file.date}）`;
-      fileList.appendChild(li);
-    });
-
-    const canvas = document.getElementById('signature');
-    const ctx = canvas.getContext('2d');
-    let drawing = false;
-
-    canvas.addEventListener('mousedown', e => {
-      drawing = true;
-      ctx.beginPath();
-      ctx.moveTo(e.offsetX, e.offsetY);
-    });
-    canvas.addEventListener('mousemove', e => {
-      if (drawing) {
-        ctx.lineTo(e.offsetX, e.offsetY);
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-    });
-    canvas.addEventListener('mouseup', () => drawing = false);
-    canvas.addEventListener('mouseleave', () => drawing = false);
-
-    canvas.addEventListener('touchstart', e => {
-      e.preventDefault();
-      drawing = true;
-      const touch = e.touches[0];
-      const rect = canvas.getBoundingClientRect();
-      const x = touch.clientX - rect.left;
-      const y = touch.clientY - rect.top;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-    }, { passive: false });
-
-    canvas.addEventListener('touchmove', e => {
-      if (!drawing) return;
-      const touch = e.touches[0];
-      const rect = canvas.getBoundingClientRect();
-      const x = touch.clientX - rect.left;
-      const y = touch.clientY - rect.top;
-      ctx.lineTo(x, y);
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }, { passive: false });
-
-    canvas.addEventListener('touchend', () => drawing = false);
-    canvas.addEventListener('touchcancel', () => drawing = false);
-
-    function clearPad() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-
-    function submitSignature() {
-      const dataUrl = canvas.toDataURL('image/png');
-
-      fetch("https://script.google.com/macros/s/AKfycbzGdKC2cdNyCJm3tqNdhJ1l83QIF0qoFqaXGGl8Xu0ydK3IksAdw6lkNERPXhs1RR1l/exec", {
-        method: "POST",
-        body: JSON.stringify({ image: dataUrl }),
-        headers: {
-          "Content-Type": "application/json"
+    async function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      // 請將下方 URL 替換為您部署的 Google Apps Script 網址
+      const apiUrl = 'https://script.google.com/macros/s/AKfycbzrtp6UfQ7iGn1ctUnYubyz_KOeGtoRRYLDzC_CcvR6NqxKZ98IAUOU4b7EvEDMX8azKA/exec';
+      
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'login', username, password })
+        });
+        const result = await response.json();
+        if (result.success) {
+          localStorage.setItem('authToken', result.token);
+          document.getElementById('message').style.color = 'green';
+          document.getElementById('message').textContent = '登入成功！正在導向主頁...';
+          // 登入成功後可轉到主頁或其他頁面
+          setTimeout(() => {
+            window.location.href = 'main.html';
+          }, 1500);
+        } else {
+          document.getElementById('message').textContent = '登入失敗：' + result.message;
         }
-      })
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("result").textContent = `✅ PDF 已產出：${data.url}`;
-      })
-      .catch(err => {
-        document.getElementById("result").textContent = `❌ 發生錯誤：${err.message}`;
-      });
+      } catch (error) {
+        document.getElementById('message').textContent = '發生錯誤：' + error;
+      }
     }
   </script>
 </body>
