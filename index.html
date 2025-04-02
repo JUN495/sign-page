@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>員工登入系統</title>
+  <title>數位簽核系統</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100 font-sans">
-  <div class="min-h-screen flex items-center justify-center px-4">
-    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md space-y-6">
+  <div class="min-h-screen flex flex-col items-center justify-center px-4 py-8">
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-2xl space-y-6">
       <h2 class="text-2xl font-bold text-center text-gray-800">🔐 員工登入系統</h2>
 
       <!-- 登入區 -->
@@ -25,24 +25,39 @@
         <button onclick="changePassword()" class="bg-yellow-500 hover:bg-yellow-400 w-full text-white py-2 rounded font-bold mt-4">變更密碼</button>
       </div>
 
-      <!-- 結果 -->
-      <p id="result" class="text-center text-sm mt-4 text-red-600"></p>
+      <!-- 登入成功區 -->
+      <div id="signed-section" class="hidden space-y-4">
+        <div>
+          <p class="text-sm text-gray-800">✅ 登入成功！部門：<span id="department"></span></p>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-gray-600 mb-1">📄 部門 PDF 清單</h3>
+          <ul id="fileList" class="text-sm space-y-1 text-gray-700"></ul>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-gray-600 mb-1">✍️ 簽名區</h3>
+          <canvas id="signature" class="border bg-white rounded shadow" width="500" height="150"></canvas>
+          <div class="flex gap-4 mt-2">
+            <button onclick="clearPad()" class="bg-gray-300 hover:bg-gray-400 text-black px-4 py-1 rounded">清除</button>
+            <button onclick="submitSignature()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-1 rounded">送出簽名</button>
+          </div>
+        </div>
+        <p id="result" class="text-green-600 font-bold"></p>
+      </div>
     </div>
   </div>
 
   <script>
-    const gasUrl = "https://aged-lake-0db4.chiachun12171217.workers.dev"; // Cloudflare Worker
-
+    const gasUrl = "https://aged-lake-0db4.chiachun12171217.workers.dev";
     let currentEmployeeId = "";
     let currentPassword = "";
+    let currentDepartment = "";
 
     function login() {
       const employeeId = document.getElementById("employeeId").value.trim();
       const password = document.getElementById("password").value.trim();
       currentEmployeeId = employeeId;
       currentPassword = password;
-
-      document.getElementById("result").textContent = "登入中...";
 
       fetch(gasUrl, {
         method: "POST",
@@ -57,27 +72,20 @@
         if (data.success && data.needPasswordChange) {
           document.getElementById("login-section").classList.add("hidden");
           document.getElementById("change-password-section").classList.remove("hidden");
-          document.getElementById("result").textContent = "請變更密碼後重新登入。";
         } else if (data.success) {
-          document.getElementById("result").classList.remove("text-red-600");
-          document.getElementById("result").classList.add("text-green-600");
-          document.getElementById("result").innerHTML = `✅ 登入成功！<br>部門：<b>${data.department}</b><br><a href="https://drive.google.com/drive/u/0/folders/請改成你的資料夾ID" target="_blank" class="text-blue-600 underline">👉 前往部門資料夾</a>`;
+          currentDepartment = data.department;
+          document.getElementById("login-section").classList.add("hidden");
+          document.getElementById("signed-section").classList.remove("hidden");
+          document.getElementById("department").textContent = data.department;
+          loadPdfList();
         } else {
-          document.getElementById("result").textContent = `❌ ${data.message}`;
+          alert(data.message);
         }
-      })
-      .catch(err => {
-        document.getElementById("result").textContent = "❌ 發生錯誤：" + err.message;
       });
     }
 
     function changePassword() {
       const newPassword = document.getElementById("newPassword").value.trim();
-      if (!newPassword) {
-        document.getElementById("result").textContent = "請輸入新密碼";
-        return;
-      }
-
       fetch(gasUrl, {
         method: "POST",
         body: new URLSearchParams({
@@ -90,19 +98,66 @@
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          document.getElementById("change-password-section").classList.add("hidden");
-          document.getElementById("login-section").classList.remove("hidden");
-          document.getElementById("password").value = "";
-          document.getElementById("newPassword").value = "";
-          document.getElementById("result").classList.remove("text-red-600");
-          document.getElementById("result").classList.add("text-green-600");
-          document.getElementById("result").textContent = "✅ 密碼變更成功，請重新登入";
+          alert("密碼已變更，請重新登入");
+          window.location.reload();
         } else {
-          document.getElementById("result").textContent = `❌ ${data.message}`;
+          alert(data.message);
         }
+      });
+    }
+
+    function loadPdfList() {
+      fetch(`${gasUrl}?action=getPdfList&department=${currentDepartment}`)
+        .then(res => res.json())
+        .then(data => {
+          const fileList = document.getElementById("fileList");
+          fileList.innerHTML = "";
+          data.files.forEach(file => {
+            const li = document.createElement("li");
+            li.textContent = `${file.name}（上傳時間：${file.date}）`;
+            fileList.appendChild(li);
+          });
+        });
+    }
+
+    // 簽名功能
+    const canvas = document.getElementById("signature");
+    const ctx = canvas.getContext("2d");
+    let drawing = false;
+
+    canvas.addEventListener("mousedown", e => {
+      drawing = true;
+      ctx.beginPath();
+      ctx.moveTo(e.offsetX, e.offsetY);
+    });
+
+    canvas.addEventListener("mousemove", e => {
+      if (drawing) {
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+      }
+    });
+
+    canvas.addEventListener("mouseup", () => drawing = false);
+    canvas.addEventListener("mouseleave", () => drawing = false);
+
+    function clearPad() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function submitSignature() {
+      const dataUrl = canvas.toDataURL("image/png");
+      fetch(gasUrl, {
+        method: "POST",
+        body: new URLSearchParams({
+          action: "generateSignedPdf",
+          department: currentDepartment,
+          dataUrl: dataUrl
+        })
       })
-      .catch(err => {
-        document.getElementById("result").textContent = "變更密碼時發生錯誤：" + err.message;
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("result").textContent = data.success ? `✅ PDF 已產出：${data.url}` : `❌ ${data.message}`;
       });
     }
   </script>
