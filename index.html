@@ -12,11 +12,13 @@
       background: linear-gradient(to right, #f8fafc, #e2e8f0);
     }
     .fade-in {
-      opacity: 0;
-      transform: translateY(20px);
-      animation: fadeInUp 0.6s ease-out forwards;
+      animation: fadeInUp 0.5s ease-out forwards;
     }
     @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
       to {
         opacity: 1;
         transform: translateY(0);
@@ -26,117 +28,161 @@
   </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4">
-  <div class="w-full max-w-2xl bg-white p-6 sm:p-8 rounded-3xl shadow-xl border border-gray-200 fade-in">
-    <h1 class="text-3xl font-bold text-center text-blue-700 mb-6">📁 數位簽核系統</h1>
+  <div id="app" class="w-full max-w-lg bg-white p-6 rounded-2xl shadow-xl border border-gray-200 fade-in">
+    <h1 class="text-2xl font-bold text-center text-blue-700 mb-4">數位簽核系統</h1>
 
-    <section class="mb-6">
-      <h2 class="text-lg font-semibold mb-2">📄 PDF 清單</h2>
-      <ul id="fileList" class="space-y-2 text-sm text-gray-700">
-        <li class="text-gray-400">載入中...</li>
-      </ul>
-    </section>
+    <!-- 登入頁面 -->
+    <div id="loginView">
+      <input id="empId" placeholder="員工編號" class="w-full border p-2 mb-3 rounded" />
+      <input id="empPw" type="password" placeholder="密碼" class="w-full border p-2 mb-4 rounded" />
+      <button onclick="login()" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-500">登入</button>
+      <p id="loginMsg" class="mt-3 text-center text-red-600 text-sm"></p>
+    </div>
 
-    <section>
-      <h2 class="text-lg font-semibold mb-2">✍️ 簽名區</h2>
-      <canvas id="signature" class="bg-white border rounded-md shadow w-full h-40"></canvas>
-      <div class="flex gap-4 justify-center mt-4">
-        <button onclick="clearPad()" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded shadow">清除</button>
-        <button onclick="submitSignature()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded shadow">送出簽名</button>
+    <!-- 首次登入變更密碼頁面 -->
+    <div id="changePwView" class="hidden">
+      <input id="oldPw" type="password" placeholder="舊密碼" class="w-full border p-2 mb-3 rounded" />
+      <input id="newPw" type="password" placeholder="新密碼" class="w-full border p-2 mb-3 rounded" />
+      <button onclick="changePassword()" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-500">變更密碼</button>
+      <p id="pwMsg" class="mt-3 text-center text-red-600 text-sm"></p>
+    </div>
+
+    <!-- 主介面 -->
+    <div id="mainView" class="hidden">
+      <p class="text-center text-gray-700 mb-3">部門：<span id="dept"></span></p>
+
+      <div class="mb-4">
+        <h2 class="font-semibold mb-2">📄 PDF 清單</h2>
+        <ul id="fileList" class="text-sm space-y-1"></ul>
       </div>
-      <p id="result" class="text-center text-green-600 mt-4 font-semibold"></p>
-    </section>
+
+      <div>
+        <h2 class="font-semibold mb-2">✍️ 簽名區</h2>
+        <canvas id="signature" class="bg-white border w-full rounded shadow" height="150"></canvas>
+        <div class="flex justify-between mt-3">
+          <button onclick="clearPad()" class="bg-gray-300 px-4 py-1 rounded hover:bg-gray-400">清除</button>
+          <button onclick="submitSignature()" class="bg-blue-600 text-white px-6 py-1 rounded hover:bg-blue-500">送出簽名</button>
+        </div>
+        <p id="result" class="text-center mt-2 text-green-600 text-sm font-medium"></p>
+      </div>
+    </div>
   </div>
 
   <script>
+    const api = 'https://你的-worker-url.workers.dev';
+    let currentEmp = '', currentFolder = '', currentList = [];
+
+    const loginView = document.getElementById('loginView');
+    const mainView = document.getElementById('mainView');
+    const changePwView = document.getElementById('changePwView');
+
+    function login() {
+      const id = document.getElementById('empId').value.trim();
+      const pw = document.getElementById('empPw').value.trim();
+      fetch(api, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ action: 'login', employeeId: id, password: pw })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          currentEmp = id;
+          if (res.needPasswordChange) {
+            loginView.classList.add('hidden');
+            changePwView.classList.remove('hidden');
+          } else {
+            document.getElementById('dept').textContent = res.department;
+            currentFolder = res.folderId;
+            loadFileList();
+            loginView.classList.add('hidden');
+            mainView.classList.remove('hidden');
+          }
+        } else {
+          document.getElementById('loginMsg').textContent = res.message;
+        }
+      });
+    }
+
+    function changePassword() {
+      fetch(api, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          action: 'changePassword',
+          employeeId: currentEmp,
+          oldPassword: document.getElementById('oldPw').value,
+          newPassword: document.getElementById('newPw').value
+        })
+      }).then(res => res.json()).then(res => {
+        if (res.success) {
+          alert('密碼已變更，請重新登入');
+          location.reload();
+        } else {
+          document.getElementById('pwMsg').textContent = res.message;
+        }
+      });
+    }
+
+    function loadFileList() {
+      fetch(`${api}?action=getPdfList&folderId=${currentFolder}`)
+        .then(res => res.json()).then(res => {
+          currentList = res.files || [];
+          const list = document.getElementById('fileList');
+          list.innerHTML = '';
+          currentList.forEach(f => {
+            const li = document.createElement('li');
+            li.textContent = `${f.name}（${f.date}）`;
+            list.appendChild(li);
+          });
+        });
+    }
+
+    // 簽名邏輯
     const canvas = document.getElementById('signature');
     const ctx = canvas.getContext('2d');
-
-    function resizeCanvas() {
-      canvas.width = window.innerWidth < 640 ? window.innerWidth * 0.9 : 500;
-      canvas.height = window.innerWidth < 640 ? 250 : 150;
-    }
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-
     let drawing = false;
-    canvas.addEventListener('mousedown', (e) => {
-      drawing = true;
-      ctx.beginPath();
-      ctx.moveTo(e.offsetX, e.offsetY);
-    });
-    canvas.addEventListener('mousemove', (e) => {
-      if (!drawing) return;
-      ctx.lineTo(e.offsetX, e.offsetY);
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.stroke();
-    });
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      if (e.touches) {
+        const t = e.touches[0];
+        return [t.clientX - rect.left, t.clientY - rect.top];
+      } else {
+        return [e.offsetX, e.offsetY];
+      }
+    }
+
+    canvas.addEventListener('mousedown', e => { drawing = true; const [x,y] = getPos(e); ctx.beginPath(); ctx.moveTo(x,y); });
+    canvas.addEventListener('mousemove', e => { if (!drawing) return; const [x,y] = getPos(e); ctx.lineTo(x,y); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke(); });
     canvas.addEventListener('mouseup', () => drawing = false);
     canvas.addEventListener('mouseleave', () => drawing = false);
 
-    canvas.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      const touch = e.touches[0];
-      const rect = canvas.getBoundingClientRect();
-      ctx.beginPath();
-      ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
-      drawing = true;
-    }, { passive: false });
-
-    canvas.addEventListener('touchmove', (e) => {
-      e.preventDefault();
-      if (!drawing) return;
-      const touch = e.touches[0];
-      const rect = canvas.getBoundingClientRect();
-      ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 3;
-      ctx.lineCap = 'round';
-      ctx.stroke();
-    }, { passive: false });
-
+    canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; const [x,y] = getPos(e); ctx.beginPath(); ctx.moveTo(x,y); }, { passive: false });
+    canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!drawing) return; const [x,y] = getPos(e); ctx.lineTo(x,y); ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.stroke(); }, { passive: false });
     canvas.addEventListener('touchend', () => drawing = false);
 
-    function clearPad() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
+    function clearPad() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
 
     function submitSignature() {
       const dataUrl = canvas.toDataURL('image/png');
-      fetch('https://你的-worker-url.workers.dev', {
+      fetch(api, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           action: 'generateSignedPdf',
           dataUrl,
-          folderId: localStorage.getItem('folderId') || '' ,
+          folderId: currentFolder,
           fileList: JSON.stringify(currentList)
         })
-      })
-      .then(res => res.json())
-      .then(json => {
-        if (json.success) {
-          document.getElementById('result').textContent = '✅ 已產出：' + json.url;
+      }).then(res => res.json()).then(res => {
+        if (res.success) {
+          document.getElementById('result').textContent = '✅ 產出成功：' + res.url;
         } else {
-          document.getElementById('result').textContent = '❌ 產出失敗：' + json.message;
+          document.getElementById('result').textContent = '❌ 錯誤：' + res.message;
         }
       });
     }
-
-    let currentList = [];
-    fetch('https://你的-worker-url.workers.dev?action=getPdfList&folderId=' + localStorage.getItem('folderId'))
-      .then(res => res.json())
-      .then(json => {
-        const ul = document.getElementById('fileList');
-        ul.innerHTML = '';
-        currentList = json.files || [];
-        currentList.forEach(file => {
-          const li = document.createElement('li');
-          li.textContent = `${file.name}（上傳：${file.date}）`;
-          ul.appendChild(li);
-        });
-      });
   </script>
 </body>
 </html>
