@@ -44,8 +44,13 @@
 
       document.getElementById("result").textContent = "登入中...";
 
-      fetch(`${gasUrl}?action=login&employeeId=${employeeId}&password=${password}`, {
-        method: "GET"
+      fetch(gasUrl, {
+        method: "POST",
+        body: new URLSearchParams({
+          action: "login",
+          employeeId,
+          password
+        })
       })
       .then(res => res.json())
       .then(data => {
@@ -62,7 +67,7 @@
         }
       })
       .catch(err => {
-        document.getElementById("result").textContent = "發生錯誤：" + err.message;
+        document.getElementById("result").textContent = "❌ 發生錯誤：" + err.message;
       });
     }
 
@@ -73,8 +78,14 @@
         return;
       }
 
-      fetch(`${gasUrl}?action=changePassword&employeeId=${currentEmployeeId}&oldPassword=${currentPassword}&newPassword=${newPassword}`, {
-        method: "GET"
+      fetch(gasUrl, {
+        method: "POST",
+        body: new URLSearchParams({
+          action: "changePassword",
+          employeeId: currentEmployeeId,
+          oldPassword: currentPassword,
+          newPassword
+        })
       })
       .then(res => res.json())
       .then(data => {
