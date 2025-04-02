@@ -31,7 +31,7 @@
           <p class="text-sm text-gray-800">✅ 登入成功！部門：<span id="department"></span></p>
         </div>
         <div>
-          <h3 class="text-sm font-bold text-gray-600 mb-1">📄 部門 PDF 清單</h3>
+          <h3 class="text-sm font-bold text-gray-600 mb-1">📄 PDF 清單</h3>
           <ul id="fileList" class="text-sm space-y-1 text-gray-700"></ul>
         </div>
         <div>
@@ -52,6 +52,7 @@
     let currentEmployeeId = "";
     let currentPassword = "";
     let currentDepartment = "";
+    let currentFolderId = "";
 
     function login() {
       const employeeId = document.getElementById("employeeId").value.trim();
@@ -74,6 +75,7 @@
           document.getElementById("change-password-section").classList.remove("hidden");
         } else if (data.success) {
           currentDepartment = data.department;
+          currentFolderId = data.folderId;
           document.getElementById("login-section").classList.add("hidden");
           document.getElementById("signed-section").classList.remove("hidden");
           document.getElementById("department").textContent = data.department;
@@ -107,7 +109,7 @@
     }
 
     function loadPdfList() {
-      fetch(`${gasUrl}?action=getPdfList&department=${currentDepartment}`)
+      fetch(`${gasUrl}?action=getPdfList&folderId=${currentFolderId}`)
         .then(res => res.json())
         .then(data => {
           const fileList = document.getElementById("fileList");
@@ -151,7 +153,7 @@
         method: "POST",
         body: new URLSearchParams({
           action: "generateSignedPdf",
-          department: currentDepartment,
+          folderId: currentFolderId,
           dataUrl: dataUrl
         })
       })
