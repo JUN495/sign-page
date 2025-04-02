@@ -4,18 +4,35 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>數位簽核系統</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      background: linear-gradient(to right, #f0f4f8, #d9e2ec);
+    }
+    .fade-in {
+      animation: fadeIn 1s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    canvas {
+      touch-action: none;
+    }
+  </style>
 </head>
 <body class="bg-gray-100 font-sans">
-  <div class="min-h-screen flex flex-col items-center justify-center px-4 py-8">
-    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-2xl space-y-6">
-      <h2 class="text-2xl font-bold text-center text-gray-800">🔐 員工登入系統</h2>
+  <div class="min-h-screen flex flex-col items-center justify-center px-4 py-8 fade-in">
+    <div class="bg-white p-6 rounded-3xl shadow-xl w-full max-w-2xl space-y-6">
+      <h2 class="text-3xl font-bold text-center text-blue-700">🔐 員工登入系統</h2>
 
       <!-- 登入區 -->
       <div id="login-section">
         <input id="employeeId" class="w-full border px-3 py-2 rounded mt-2" placeholder="員工編號 (如 CC0384)">
         <input id="password" class="w-full border px-3 py-2 rounded mt-2" type="password" placeholder="密碼">
-        <button onclick="login()" class="bg-blue-600 hover:bg-blue-500 w-full text-white py-2 rounded font-bold mt-4">登入</button>
+        <button onclick="login()" class="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 w-full text-white py-2 rounded-lg font-bold mt-4 transition duration-200">登入</button>
       </div>
 
       <!-- 首次登入變更密碼區 -->
@@ -34,20 +51,24 @@
           <h3 class="text-sm font-bold text-gray-600 mb-1">📄 PDF 清單</h3>
           <table class="w-full text-left text-sm text-gray-700 border border-gray-300">
             <thead class="bg-gray-200">
-              <tr><th class="px-4 py-2 border">檔名</th><th class="px-4 py-2 border">上傳時間</th></tr>
+              <tr><th class="px-4 py-2 border">檔名</th><th class="px-4 py-2 border">上傳日期</th></tr>
             </thead>
             <tbody id="fileList" class="divide-y"></tbody>
           </table>
         </div>
         <div>
           <h3 class="text-sm font-bold text-gray-600 mb-1">✍️ 簽名區</h3>
-          <canvas id="signature" class="border bg-white rounded shadow" width="500" height="150"></canvas>
-          <div class="flex gap-4 mt-2">
-            <button onclick="clearPad()" class="bg-gray-300 hover:bg-gray-400 text-black px-4 py-1 rounded">清除</button>
-            <button onclick="submitSignature()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-1 rounded">送出簽名</button>
+          <canvas id="signature" class="border bg-white rounded shadow w-full sm:w-auto" width="500" height="150"></canvas>
+          <div class="flex flex-col sm:flex-row gap-4 mt-2">
+            <button onclick="clearPad()" class="bg-gray-300 hover:bg-gray-400 text-black px-4 py-2 rounded w-full sm:w-auto">清除</button>
+            <button onclick="submitSignature()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded w-full sm:w-auto">送出簽名</button>
           </div>
         </div>
-        <p id="result" class="text-green-600 font-bold"></p>
+        <div id="result" class="text-green-600 font-bold text-center text-sm"></div>
+        <div id="pdfPreview" class="mt-4 hidden">
+          <h3 class="text-sm font-bold text-gray-600 mb-1 text-center">📄 預覽產出 PDF</h3>
+          <iframe id="pdfFrame" class="w-full h-[600px] border rounded shadow"></iframe>
+        </div>
       </div>
     </div>
   </div>
@@ -128,7 +149,7 @@
             td1.className = "px-4 py-2 border";
             td2.className = "px-4 py-2 border";
             td1.textContent = file.name;
-            td2.textContent = file.date;
+            td2.textContent = file.date.split(' ')[0];
             tr.appendChild(td1);
             tr.appendChild(td2);
             fileList.appendChild(tr);
@@ -173,7 +194,15 @@
       })
       .then(res => res.json())
       .then(data => {
-        document.getElementById("result").textContent = data.success ? `✅ PDF 已產出：${data.url}` : `❌ ${data.message}`;
+        const result = document.getElementById("result");
+        if (data.success && data.url) {
+          result.textContent = "✅ PDF 已成功產出！";
+          const frame = document.getElementById("pdfFrame");
+          frame.src = data.url;
+          document.getElementById("pdfPreview").classList.remove("hidden");
+        } else {
+          result.textContent = `❌ ${data.message}`;
+        }
       });
     }
   </script>
