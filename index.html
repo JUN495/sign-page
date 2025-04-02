@@ -32,7 +32,12 @@
         </div>
         <div>
           <h3 class="text-sm font-bold text-gray-600 mb-1">📄 PDF 清單</h3>
-          <ul id="fileList" class="text-sm space-y-1 text-gray-700"></ul>
+          <table class="w-full text-left text-sm text-gray-700 border border-gray-300">
+            <thead class="bg-gray-200">
+              <tr><th class="px-4 py-2 border">檔名</th><th class="px-4 py-2 border">上傳時間</th></tr>
+            </thead>
+            <tbody id="fileList" class="divide-y"></tbody>
+          </table>
         </div>
         <div>
           <h3 class="text-sm font-bold text-gray-600 mb-1">✍️ 簽名區</h3>
@@ -115,9 +120,16 @@
           const fileList = document.getElementById("fileList");
           fileList.innerHTML = "";
           data.files.forEach(file => {
-            const li = document.createElement("li");
-            li.textContent = `${file.name}（上傳時間：${file.date}）`;
-            fileList.appendChild(li);
+            const tr = document.createElement("tr");
+            const td1 = document.createElement("td");
+            const td2 = document.createElement("td");
+            td1.className = "px-4 py-2 border";
+            td2.className = "px-4 py-2 border";
+            td1.textContent = file.name;
+            td2.textContent = file.date;
+            tr.appendChild(td1);
+            tr.appendChild(td2);
+            fileList.appendChild(tr);
           });
         });
     }
