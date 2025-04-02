@@ -68,8 +68,14 @@
     async function login() {
       const username = document.getElementById('username').value;
       const password = document.getElementById('password').value;
-      // 請將下方 URL 替換為您部署的 Google Apps Script 網址
-      const apiUrl = 'https://script.google.com/macros/s/AKfycbzrtp6UfQ7iGn1ctUnYubyz_KOeGtoRRYLDzC_CcvR6NqxKZ98IAUOU4b7EvEDMX8azKA/exec';
+      
+      // 使用 CORS 代理，請先到 https://cors-anywhere.herokuapp.com/ 取得 temporary access（僅供測試用）
+      const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+      // 將下方 URL 替換為您部署的 Google Apps Script 網址
+      const targetUrl = 'https://script.google.com/macros/s/AKfycbzrtp6UfQ7iGn1ctUnYubyz_KOeGtoRRYLDzC_CcvR6NqxKZ98IAUOU4b7EvEDMX8azKA/exec';
+      
+      // 最終呼叫的 URL
+      const apiUrl = proxyUrl + targetUrl;
       
       try {
         const response = await fetch(apiUrl, {
