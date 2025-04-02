@@ -72,7 +72,9 @@
 
       <div class="bg-white bg-opacity-90 p-4 rounded-lg shadow">
         <h2 class="text-lg font-bold mb-2">📄 PDF 清單</h2>
-        <ul id="fileList" class="text-sm text-gray-800 space-y-2"></ul>
+        <ul id="fileList" class="text-sm text-gray-800 space-y-2">
+          <li class="text-gray-500">載入中...</li>
+        </ul>
       </div>
 
       <div class="bg-white bg-opacity-90 p-4 rounded-lg shadow">
@@ -116,10 +118,55 @@
       });
     }
 
+    function loadFileList() {
+      fetch(`${api}?action=getPdfList&folderId=${encodeURIComponent(currentFolder)}`)
+        .then(res => res.json())
+        .then(res => {
+          const fileList = document.getElementById('fileList');
+          fileList.innerHTML = '';
+          if (res.files && res.files.length > 0) {
+            res.files.forEach(file => {
+              const li = document.createElement('li');
+              li.textContent = `${file.name}（上傳時間：${file.date}）`;
+              fileList.appendChild(li);
+            });
+          } else {
+            fileList.innerHTML = '<li class="text-gray-500">尚無 PDF 檔案</li>';
+          }
+        })
+        .catch(() => {
+          document.getElementById('fileList').innerHTML = '<li class="text-red-500">無法載入 PDF 清單</li>';
+        });
+    }
+
     function clearPad() {
       const canvas = document.getElementById("signature");
       const ctx = canvas.getContext("2d");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function submitSignature() {
+      const canvas = document.getElementById("signature");
+      const dataUrl = canvas.toDataURL("image/png");
+      fetch(api, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          action: 'generateSignedPdf',
+          dataUrl,
+          folderId: currentFolder,
+          fileList: JSON.stringify(currentList)
+        })
+      }).then(res => res.json()).then(res => {
+        if (res.success) {
+          result.textContent = `✅ 已產出簽核 PDF！`;
+          loadFileList();
+        } else {
+          result.textContent = `❌ 錯誤：${res.message}`;
+        }
+      }).catch(err => {
+        result.textContent = `❌ 發生錯誤：${err.message}`;
+      });
     }
   </script>
 </body>
