@@ -9,82 +9,68 @@
   <style>
     html, body {
       font-family: 'Noto Sans TC', sans-serif;
-      background: url('https://images.unsplash.com/photo-1601597111254-70d6a5cd63b2?auto=format&fit=crop&w=1600&q=80') no-repeat center center fixed;
-      background-size: cover;
+      background: linear-gradient(135deg, #c3dafe, #ebf4ff);
+      min-height: 100vh;
     }
     .glass {
-      backdrop-filter: blur(15px);
-      background: rgba(255, 255, 255, 0.25);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
-    }
-    .fade-in {
-      opacity: 0;
-      transform: translateY(20px);
-      animation: fadeIn 0.8s ease-out forwards;
-    }
-    @keyframes fadeIn {
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      backdrop-filter: blur(20px);
+      background: rgba(255, 255, 255, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
     }
     canvas { touch-action: none; }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
-  <div id="app" class="w-full max-w-xl glass p-6 sm:p-8 rounded-3xl fade-in">
-    <h1 class="text-3xl font-bold text-center text-white drop-shadow mb-6">✨ 數位簽核系統</h1>
+<body class="flex items-center justify-center p-6">
+  <div class="glass w-full max-w-2xl p-8 rounded-2xl shadow-xl space-y-6">
+    <h1 class="text-3xl font-bold text-center text-blue-700">📝 數位簽核系統</h1>
 
-    <!-- 登入頁面 -->
-    <div id="loginView">
-      <input id="empId" placeholder="員工編號" class="w-full mb-3 p-2 rounded bg-white bg-opacity-80 border" />
-      <input id="empPw" type="password" placeholder="密碼" class="w-full mb-4 p-2 rounded bg-white bg-opacity-80 border" />
-      <button onclick="login()" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-500">登入</button>
-      <p id="loginMsg" class="mt-3 text-center text-yellow-200 text-sm"></p>
+    <!-- 登入畫面 -->
+    <div id="loginView" class="space-y-4">
+      <input id="empId" placeholder="員工編號" class="w-full border border-gray-300 p-3 rounded-lg" />
+      <input id="empPw" type="password" placeholder="密碼" class="w-full border border-gray-300 p-3 rounded-lg" />
+      <button onclick="login()" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-500">登入</button>
+      <p id="loginMsg" class="text-center text-red-600 text-sm"></p>
     </div>
 
-    <!-- 首次登入變更密碼頁面 -->
-    <div id="changePwView" class="hidden">
-      <input id="oldPw" type="password" placeholder="舊密碼" class="w-full mb-3 p-2 rounded bg-white bg-opacity-80 border" />
-      <input id="newPw" type="password" placeholder="新密碼" class="w-full mb-4 p-2 rounded bg-white bg-opacity-80 border" />
-      <button onclick="changePassword()" class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-500">變更密碼</button>
-      <p id="pwMsg" class="mt-3 text-center text-yellow-100 text-sm"></p>
+    <!-- 首次登入變更密碼 -->
+    <div id="changePwView" class="hidden space-y-4">
+      <input id="oldPw" type="password" placeholder="舊密碼" class="w-full border border-gray-300 p-3 rounded-lg" />
+      <input id="newPw" type="password" placeholder="新密碼" class="w-full border border-gray-300 p-3 rounded-lg" />
+      <button onclick="changePassword()" class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-500">變更密碼</button>
+      <p id="pwMsg" class="text-center text-red-600 text-sm"></p>
     </div>
 
     <!-- 主畫面 -->
-    <div id="mainView" class="hidden">
-      <p class="text-center text-white mb-4">部門：<span id="dept"></span></p>
-      <div class="bg-white bg-opacity-70 p-4 rounded-xl mb-4">
-        <h2 class="font-semibold mb-2">📄 PDF 清單</h2>
+    <div id="mainView" class="hidden space-y-6">
+      <p class="text-center text-gray-800 font-semibold">部門：<span id="dept"></span></p>
+
+      <div class="bg-white bg-opacity-80 p-4 rounded-lg shadow">
+        <h2 class="text-lg font-bold mb-2">📄 PDF 清單</h2>
         <ul id="fileList" class="text-sm text-gray-800 space-y-1"></ul>
       </div>
 
-      <div class="bg-white bg-opacity-70 p-4 rounded-xl">
-        <h2 class="font-semibold mb-2">✍️ 簽名區</h2>
-        <canvas id="signature" class="bg-white border w-full rounded shadow mb-3" height="150"></canvas>
-        <div class="flex justify-between">
-          <button onclick="clearPad()" class="bg-gray-300 px-4 py-1 rounded hover:bg-gray-400">清除</button>
-          <button onclick="submitSignature()" class="bg-blue-600 text-white px-6 py-1 rounded hover:bg-blue-500">送出</button>
+      <div class="bg-white bg-opacity-80 p-4 rounded-lg shadow">
+        <h2 class="text-lg font-bold mb-2">✍️ 簽名區</h2>
+        <canvas id="signature" class="w-full border rounded-md bg-white" height="150"></canvas>
+        <div class="flex justify-between mt-4">
+          <button onclick="clearPad()" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded">清除</button>
+          <button onclick="submitSignature()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-500">送出簽名</button>
         </div>
-        <p id="result" class="text-center mt-2 text-green-700 text-sm font-medium"></p>
+        <p id="result" class="mt-4 text-center text-green-700 text-sm font-medium"></p>
       </div>
     </div>
   </div>
 
   <script>
-    const api = 'https://aged-lake-0db4.chiachun12171217.workers.dev'; // ✅ 自動帶入你的 Worker URL
+    const api = 'https://aged-lake-0db4.chiachun12171217.workers.dev';
     let currentEmp = '', currentFolder = '', currentList = [];
 
     function login() {
       fetch(api, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          action: 'login',
-          employeeId: empId.value,
-          password: empPw.value
-        })
+        body: new URLSearchParams({ action: 'login', employeeId: empId.value, password: empPw.value })
       }).then(res => res.json()).then(res => {
         if (res.success && res.needPasswordChange) {
           loginView.classList.add('hidden');
@@ -136,19 +122,37 @@
         });
     }
 
-    // ✍️ 簽名功能
     const canvas = document.getElementById('signature');
     const ctx = canvas.getContext('2d');
     let drawing = false;
 
-    canvas.addEventListener('mousedown', e => { drawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); });
-    canvas.addEventListener('mousemove', e => { if (drawing) { ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); } });
+    function resizeCanvas() {
+      canvas.width = canvas.offsetWidth;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('load', resizeCanvas);
+
+    canvas.addEventListener('mousedown', e => {
+      drawing = true;
+      ctx.beginPath();
+      ctx.moveTo(e.offsetX, e.offsetY);
+    });
+    canvas.addEventListener('mousemove', e => {
+      if (!drawing) return;
+      ctx.lineTo(e.offsetX, e.offsetY);
+      ctx.stroke();
+    });
     canvas.addEventListener('mouseup', () => drawing = false);
+    canvas.addEventListener('mouseleave', () => drawing = false);
+
     canvas.addEventListener('touchstart', e => {
       const rect = canvas.getBoundingClientRect();
       const t = e.touches[0];
-      drawing = true; ctx.beginPath(); ctx.moveTo(t.clientX - rect.left, t.clientY - rect.top);
+      drawing = true;
+      ctx.beginPath();
+      ctx.moveTo(t.clientX - rect.left, t.clientY - rect.top);
     }, { passive: false });
+
     canvas.addEventListener('touchmove', e => {
       if (!drawing) return;
       const rect = canvas.getBoundingClientRect();
@@ -156,9 +160,12 @@
       ctx.lineTo(t.clientX - rect.left, t.clientY - rect.top);
       ctx.stroke();
     }, { passive: false });
-    canvas.addEventListener('mouseup', () => drawing = false);
 
-    function clearPad() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+    canvas.addEventListener('touchend', () => drawing = false);
+
+    function clearPad() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
 
     function submitSignature() {
       const dataUrl = canvas.toDataURL('image/png');
