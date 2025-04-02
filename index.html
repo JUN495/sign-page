@@ -1,21 +1,65 @@
-<script>
-  const proxyUrl = 'https://aged-lake-0db4.chiachun12171217.workers.dev/';
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登入系統測試</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      background: linear-gradient(to right, #f0f4f8, #d9e2ec);
+    }
+  </style>
+</head>
+<body>
+  <div class="min-h-screen flex items-center justify-center px-4">
+    <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
+      <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">🔐 管理登入系統</h2>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-gray-600 mb-1">帳號</label>
+          <input type="text" id="username" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="輸入帳號" value="admin">
+        </div>
+        <div>
+          <label class="block text-gray-600 mb-1">密碼</label>
+          <input type="password" id="password" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="輸入密碼" value="1234">
+        </div>
+        <button onclick="login()" class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-500 font-bold">登入</button>
+        <p id="result" class="text-center text-sm mt-4"></p>
+      </div>
+    </div>
+  </div>
 
-  function login() {
-    const username = document.getElementById("username").value;
-    const password = document.getElementById("password").value;
+  <script>
+    const proxyUrl = 'https://aged-lake-0db4.chiachun12171217.workers.dev/'; // 這是您的 Cloudflare Worker 代理網址
 
-    fetch(proxyUrl + '?action=login&username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password))
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          alert('✅ 登入成功：' + data.token);
-        } else {
-          alert('❌ 登入失敗：' + data.message);
-        }
-      })
-      .catch(err => {
-        alert('❌ 錯誤：' + err);
-      });
-  }
-</script>
+    function login() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      const resultElement = document.getElementById("result");
+      resultElement.textContent = "登入中...";
+
+      fetch(proxyUrl + '?action=login&username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password))
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            resultElement.textContent = '✅ 登入成功！Token: ' + data.token;
+            resultElement.classList.remove("text-red-600");
+            resultElement.classList.add("text-green-600");
+          } else {
+            resultElement.textContent = '❌ 登入失敗：' + data.message;
+            resultElement.classList.remove("text-green-600");
+            resultElement.classList.add("text-red-600");
+          }
+        })
+        .catch(err => {
+          resultElement.textContent = '❌ 發生錯誤：' + err.message;
+          resultElement.classList.remove("text-green-600");
+          resultElement.classList.add("text-red-600");
+        });
+    }
+  </script>
+</body>
+</html>
