@@ -33,6 +33,7 @@
       border: 1px solid #ccc;
       background: white;
       display: block;
+      width: 100%;
     }
     #fileList li {
       padding: 0.5rem 1rem;
@@ -93,10 +94,9 @@
 const api = 'https://aged-lake-0db4.chiachun12171217.workers.dev';
 let userToken = '', folderId = '', currentFileList = [];
 
-/**
- * 初始化簽名畫布 → 確保在 mainView 顯示後再呼叫
- * 這樣能在手機上保持精準度 & 不會拖動
- */
+/***************************************
+ * STEP 1: 初始化簽名畫布 - 依據裝置判斷大小
+ ***************************************/
 function initSignatureCanvas() {
   const canvas = document.getElementById('signature');
   const ctx = canvas.getContext('2d');
@@ -105,13 +105,18 @@ function initSignatureCanvas() {
 
   function resizeCanvas() {
     const dpr = window.devicePixelRatio || 1;
-    // 以畫布容器的可用寬度為基準，高度就設定為寬度的 0.33
     const width = canvas.offsetWidth;
-    const height = Math.floor(width * 0.33);
+
+    // 如果裝置寬度 < 768，視為手機；否則電腦
+    let ratio = (window.innerWidth < 768) ? 0.55 : 0.33;
+
+    const height = Math.floor(width * ratio);
+
     canvas.width = width * dpr;
     canvas.height = height * dpr;
     canvas.style.height = height + 'px';
     canvas.style.width = width + 'px';
+
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
   }
@@ -127,7 +132,6 @@ function initSignatureCanvas() {
       return [e.offsetX, e.offsetY];
     }
   }
-
   function startDraw(e) {
     drawing = true;
     const [x, y] = getOffset(e);
@@ -135,7 +139,6 @@ function initSignatureCanvas() {
     ctx.moveTo(x, y);
     [lastX, lastY] = [x, y];
   }
-
   function draw(e) {
     if (!drawing) return;
     const [x, y] = getOffset(e);
@@ -146,7 +149,6 @@ function initSignatureCanvas() {
     ctx.stroke();
     [lastX, lastY] = [x, y];
   }
-
   function endDraw() {
     drawing = false;
   }
@@ -155,11 +157,23 @@ function initSignatureCanvas() {
   canvas.addEventListener('mousemove', draw);
   canvas.addEventListener('mouseup', endDraw);
   canvas.addEventListener('mouseleave', endDraw);
-  canvas.addEventListener('touchstart', e => { e.preventDefault(); startDraw(e); }, { passive: false });
-  canvas.addEventListener('touchmove', e => { e.preventDefault(); draw(e); }, { passive: false });
+
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    startDraw(e);
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    draw(e);
+  }, { passive: false });
+
   canvas.addEventListener('touchend', endDraw);
 }
 
+/***************************************
+ * STEP 2: 其餘業務邏輯
+ ***************************************/
 function login() {
   const id = document.getElementById("empId").value.trim();
   const pw = document.getElementById("empPw").value.trim();
@@ -182,7 +196,7 @@ function login() {
           folderId = data.folderId;
           loadFileList();
           // ⭐ 在這裡初始化簽名
-          setTimeout(initSignatureCanvas, 100);
+          setTimeout(initSignatureCanvas, 150);
         }
       } else {
         loginMsg.textContent = data.message;
