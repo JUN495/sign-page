@@ -69,12 +69,11 @@
       const username = document.getElementById('username').value;
       const password = document.getElementById('password').value;
       
-      // 使用 CORS 代理，請先到 https://cors-anywhere.herokuapp.com/ 取得 temporary access（僅供測試用）
-      const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-      // 將下方 URL 替換為您部署的 Google Apps Script 網址
+      // 使用另一個 CORS 代理：thingproxy.freeboard.io
+      const proxyUrl = 'https://thingproxy.freeboard.io/fetch/';
+      // 請將下方 URL 替換為您部署的 Google Apps Script 網址
       const targetUrl = 'https://script.google.com/macros/s/AKfycbzrtp6UfQ7iGn1ctUnYubyz_KOeGtoRRYLDzC_CcvR6NqxKZ98IAUOU4b7EvEDMX8azKA/exec';
       
-      // 最終呼叫的 URL
       const apiUrl = proxyUrl + targetUrl;
       
       try {
@@ -83,17 +82,24 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'login', username, password })
         });
-        const result = await response.json();
-        if (result.success) {
-          localStorage.setItem('authToken', result.token);
-          document.getElementById('message').style.color = 'green';
-          document.getElementById('message').textContent = '登入成功！正在導向主頁...';
-          // 登入成功後可轉到主頁或其他頁面
-          setTimeout(() => {
-            window.location.href = 'main.html';
-          }, 1500);
-        } else {
-          document.getElementById('message').textContent = '登入失敗：' + result.message;
+        // 先以文字方式取得回應內容
+        const text = await response.text();
+        try {
+          // 嘗試解析 JSON
+          const result = JSON.parse(text);
+          if (result.success) {
+            localStorage.setItem('authToken', result.token);
+            document.getElementById('message').style.color = 'green';
+            document.getElementById('message').textContent = '登入成功！正在導向主頁...';
+            setTimeout(() => {
+              window.location.href = 'main.html';
+            }, 1500);
+          } else {
+            document.getElementById('message').textContent = '登入失敗：' + result.message;
+          }
+        } catch (jsonErr) {
+          // 如果解析失敗，顯示原始回應內容以便調試
+          document.getElementById('message').textContent = '回應解析錯誤：' + text;
         }
       } catch (error) {
         document.getElementById('message').textContent = '發生錯誤：' + error;
