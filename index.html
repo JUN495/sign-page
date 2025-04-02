@@ -43,6 +43,7 @@
         <button onclick="clearPad()" class="bg-gray-600 hover:bg-gray-500 text-white px-5 py-2 rounded-full shadow">清除</button>
         <button onclick="submitSignature()" class="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white px-6 py-2 rounded-full font-semibold shadow-lg transition duration-300">送出簽名</button>
       </div>
+      <p id="result" class="mt-6 text-center text-green-400 font-semibold"></p>
     </section>
   </div>
 
@@ -131,7 +132,21 @@
 
     function submitSignature() {
       const dataUrl = canvas.toDataURL('image/png');
-      alert("✔️ 簽名已擷取，後端串接中...");
+
+      fetch("https://script.google.com/macros/s/AKfycbzGdKC2cdNyCJm3tqNdhJ1l83QIF0qoFqaXGGl8Xu0ydK3IksAdw6lkNERPXhs1RR1l/exec", {
+        method: "POST",
+        body: JSON.stringify({ image: dataUrl }),
+        headers: {
+          "Content-Type": "application/json"
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("result").textContent = `✅ PDF 已產出：${data.url}`;
+      })
+      .catch(err => {
+        document.getElementById("result").textContent = `❌ 發生錯誤：${err.message}`;
+      });
     }
   </script>
 </body>
