@@ -2,108 +2,34 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>登入 - 數位簽核系統測試</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/primer/16.2.0/build.css">
-  <style>
-    body {
-      background: #f6f8fa;
-      font-family: 'Noto Sans TC', sans-serif;
-      padding: 20px;
-    }
-    .container {
-      max-width: 400px;
-      margin: auto;
-      background: #fff;
-      padding: 20px;
-      border-radius: 6px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-    .input-group {
-      margin-bottom: 15px;
-    }
-    .input-group label {
-      display: block;
-      margin-bottom: 5px;
-    }
-    .input-group input {
-      width: 100%;
-      padding: 8px;
-      box-sizing: border-box;
-    }
-    .btn {
-      width: 100%;
-      padding: 10px;
-      background: #2da44e;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .btn:hover {
-      background: #22863a;
-    }
-    #message {
-      margin-top: 10px;
-      color: red;
-    }
-  </style>
+  <title>登入測試</title>
 </head>
 <body>
-  <div class="container">
-    <h2>登入系統</h2>
-    <div class="input-group">
-      <label for="username">使用者帳號</label>
-      <input type="text" id="username" placeholder="請輸入帳號">
-    </div>
-    <div class="input-group">
-      <label for="password">密碼</label>
-      <input type="password" id="password" placeholder="請輸入密碼">
-    </div>
-    <button class="btn" onclick="login()">登入</button>
-    <p id="message"></p>
-  </div>
-  
+  <h1>GAS Login Test</h1>
+  <input type="text" id="username" placeholder="使用者帳號" value="admin">
+  <input type="password" id="password" placeholder="密碼" value="1234">
+  <button onclick="login()">登入</button>
+  <p id="result"></p>
+
   <script>
-    async function login() {
-      const username = document.getElementById('username').value;
-      const password = document.getElementById('password').value;
-      
-      // 使用另一個 CORS 代理：thingproxy.freeboard.io
-      const proxyUrl = 'https://thingproxy.freeboard.io/fetch/';
-      // 請將下方 URL 替換為您部署的 Google Apps Script 網址
-      const targetUrl = 'https://script.google.com/macros/s/AKfycbzrtp6UfQ7iGn1ctUnYubyz_KOeGtoRRYLDzC_CcvR6NqxKZ98IAUOU4b7EvEDMX8azKA/exec';
-      
-      const apiUrl = proxyUrl + targetUrl;
-      
-      try {
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'login', username, password })
-        });
-        // 先以文字方式取得回應內容
-        const text = await response.text();
-        try {
-          // 嘗試解析 JSON
-          const result = JSON.parse(text);
-          if (result.success) {
-            localStorage.setItem('authToken', result.token);
-            document.getElementById('message').style.color = 'green';
-            document.getElementById('message').textContent = '登入成功！正在導向主頁...';
-            setTimeout(() => {
-              window.location.href = 'main.html';
-            }, 1500);
+    function login() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      const url = `https://script.google.com/macros/s/AKfycbwilm5l0kp8vGwMFpv--wR0QjqoT8ermYk8-rQsveG3k9uG_9BD-1bNQ1bdD8qga-UpQ/exec?action=login&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            document.getElementById("result").textContent = `✅ 登入成功！Token: ${data.token}`;
           } else {
-            document.getElementById('message').textContent = '登入失敗：' + result.message;
+            document.getElementById("result").textContent = `❌ 登入失敗：${data.message}`;
           }
-        } catch (jsonErr) {
-          // 如果解析失敗，顯示原始回應內容以便調試
-          document.getElementById('message').textContent = '回應解析錯誤：' + text;
-        }
-      } catch (error) {
-        document.getElementById('message').textContent = '發生錯誤：' + error;
-      }
+        })
+        .catch(err => {
+          document.getElementById("result").textContent = `❌ 錯誤：${err}`;
+        });
     }
   </script>
 </body>
