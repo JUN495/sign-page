@@ -48,6 +48,7 @@
     }
   </style>
 </head>
+
 <body class="flex items-center justify-center p-6">
   <div class="glass w-full max-w-2xl p-8 rounded-2xl space-y-6">
     <h1 class="text-3xl font-bold text-center text-indigo-700 drop-shadow">📝 數位簽核系統</h1>
@@ -95,7 +96,7 @@ const api = 'https://aged-lake-0db4.chiachun12171217.workers.dev';
 let userToken = '', folderId = '', currentFileList = [];
 
 /***************************************
- * STEP 1: 初始化簽名畫布 - 依據裝置判斷大小
+ * 簽名畫布初始化
  ***************************************/
 function initSignatureCanvas() {
   const canvas = document.getElementById('signature');
@@ -106,10 +107,8 @@ function initSignatureCanvas() {
   function resizeCanvas() {
     const dpr = window.devicePixelRatio || 1;
     const width = canvas.offsetWidth;
-
-    // 如果裝置寬度 < 768，視為手機；否則電腦
+    // 若螢幕 < 768，視為手機
     let ratio = (window.innerWidth < 768) ? 0.55 : 0.33;
-
     const height = Math.floor(width * ratio);
 
     canvas.width = width * dpr;
@@ -126,7 +125,7 @@ function initSignatureCanvas() {
 
   function getOffset(e) {
     const rect = canvas.getBoundingClientRect();
-    if (e.touches && e.touches[0]) {
+    if (e.touches?.[0]) {
       return [e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top];
     } else {
       return [e.offsetX, e.offsetY];
@@ -172,7 +171,19 @@ function initSignatureCanvas() {
 }
 
 /***************************************
- * STEP 2: 其餘業務邏輯
+ * downscaleCanvas → 縮小圖片再送出
+ ***************************************/
+function downscaleCanvas(originalCanvas, scale = 0.5) {
+  const tmpCanvas = document.createElement('canvas');
+  const ctx2 = tmpCanvas.getContext('2d');
+  tmpCanvas.width = originalCanvas.width * scale;
+  tmpCanvas.height = originalCanvas.height * scale;
+  ctx2.drawImage(originalCanvas, 0, 0, tmpCanvas.width, tmpCanvas.height);
+  return tmpCanvas.toDataURL('image/png');
+}
+
+/***************************************
+ * 登入 / 改密碼 / 清單 / 送出邏輯
  ***************************************/
 function login() {
   const id = document.getElementById("empId").value.trim();
@@ -195,8 +206,8 @@ function login() {
           userToken = data.token;
           folderId = data.folderId;
           loadFileList();
-          // ⭐ 在這裡初始化簽名
-          setTimeout(initSignatureCanvas, 150);
+          // 初始化簽名畫布
+          setTimeout(initSignatureCanvas, 100);
         }
       } else {
         loginMsg.textContent = data.message;
@@ -255,7 +266,9 @@ function clearPad() {
 
 function submitSignature() {
   const c = document.getElementById('signature');
-  const dataUrl = c.toDataURL("image/png");
+  // ⭐ 針對手機簽名過大的問題 → 強制縮小 50%
+  const dataUrl = downscaleCanvas(c, 0.5);
+
   fetch(`${api}/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
