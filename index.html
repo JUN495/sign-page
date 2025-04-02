@@ -49,7 +49,6 @@
 <body class="flex items-center justify-center p-6">
   <div class="glass w-full max-w-2xl p-8 rounded-2xl space-y-6">
     <h1 class="text-3xl font-bold text-center text-indigo-700 drop-shadow">📝 數位簽核系統</h1>
-
     <!-- 登入畫面 -->
     <div id="loginView" class="space-y-4">
       <input id="empId" placeholder="員工編號" class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300" />
@@ -57,7 +56,6 @@
       <button onclick="login()" class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-500 transition">登入</button>
       <p id="loginMsg" class="text-center text-red-600 text-sm"></p>
     </div>
-
     <!-- 首次登入變更密碼 -->
     <div id="changePwView" class="hidden space-y-4">
       <input id="oldPw" type="password" placeholder="舊密碼" class="w-full border border-gray-300 p-3 rounded-lg" />
@@ -65,18 +63,15 @@
       <button onclick="changePassword()" class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-500 transition">變更密碼</button>
       <p id="pwMsg" class="text-center text-red-600 text-sm"></p>
     </div>
-
     <!-- 主畫面 -->
     <div id="mainView" class="hidden space-y-6">
       <p class="text-center text-gray-800 font-semibold">部門：<span id="dept"></span></p>
-
       <div class="bg-white bg-opacity-90 p-4 rounded-lg shadow">
         <h2 class="text-lg font-bold mb-2">📄 PDF 清單</h2>
         <ul id="fileList" class="text-sm text-gray-800 space-y-2">
           <li class="text-gray-500">載入中...</li>
         </ul>
       </div>
-
       <div class="bg-white bg-opacity-90 p-4 rounded-lg shadow">
         <h2 class="text-lg font-bold mb-2">✍️ 簽名區</h2>
         <canvas id="signature" class="w-full" height="150"></canvas>
@@ -88,7 +83,6 @@
       </div>
     </div>
   </div>
-
   <script>
     const api = 'https://aged-lake-0db4.chiachun12171217.workers.dev';
     let currentEmp = '', currentFolder = '', currentList = [];
@@ -124,8 +118,9 @@
         .then(res => {
           const fileList = document.getElementById('fileList');
           fileList.innerHTML = '';
-          if (res.files && res.files.length > 0) {
-            res.files.forEach(file => {
+          currentList = res.files || [];
+          if (currentList.length > 0) {
+            currentList.forEach(file => {
               const li = document.createElement('li');
               li.textContent = `${file.name}（上傳時間：${file.date}）`;
               fileList.appendChild(li);
@@ -168,6 +163,47 @@
         result.textContent = `❌ 發生錯誤：${err.message}`;
       });
     }
+
+    // ⭐ 簽名功能（滑鼠 & 手機）
+    const canvas = document.getElementById("signature");
+    const ctx = canvas.getContext("2d");
+    let drawing = false;
+
+    function getOffset(e) {
+      const rect = canvas.getBoundingClientRect();
+      if (e.touches && e.touches[0]) {
+        return [e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top];
+      } else {
+        return [e.offsetX, e.offsetY];
+      }
+    }
+
+    function startDraw(e) {
+      drawing = true;
+      const [x, y] = getOffset(e);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    }
+    function draw(e) {
+      if (!drawing) return;
+      const [x, y] = getOffset(e);
+      ctx.lineTo(x, y);
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+    function endDraw() {
+      drawing = false;
+    }
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', endDraw);
+    canvas.addEventListener('mouseleave', endDraw);
+    canvas.addEventListener('touchstart', e => { e.preventDefault(); startDraw(e); }, { passive: false });
+    canvas.addEventListener('touchmove', e => { e.preventDefault(); draw(e); }, { passive: false });
+    canvas.addEventListener('touchend', endDraw);
   </script>
 </body>
 </html>
