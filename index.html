@@ -27,13 +27,12 @@
         transform: translateY(0);
       }
     }
-    canvas {
+    #signature {
       touch-action: none;
       border-radius: 12px;
       border: 1px solid #ccc;
       background: white;
-      width: 100%;
-      height: auto;
+      display: block;
     }
     #fileList li {
       padding: 0.5rem 1rem;
@@ -51,6 +50,7 @@
 <body class="flex items-center justify-center p-6">
   <div class="glass w-full max-w-2xl p-8 rounded-2xl space-y-6">
     <h1 class="text-3xl font-bold text-center text-indigo-700 drop-shadow">📝 數位簽核系統</h1>
+
     <!-- 登入畫面 -->
     <div id="loginView" class="space-y-4">
       <input id="empId" placeholder="員工編號" class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300" />
@@ -58,6 +58,7 @@
       <button onclick="login()" class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-500 transition">登入</button>
       <p id="loginMsg" class="text-center text-red-600 text-sm"></p>
     </div>
+
     <!-- 首次登入變更密碼 -->
     <div id="changePwView" class="hidden space-y-4">
       <input id="oldPw" type="password" placeholder="舊密碼" class="w-full border border-gray-300 p-3 rounded-lg" />
@@ -65,6 +66,7 @@
       <button onclick="changePassword()" class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-500 transition">變更密碼</button>
       <p id="pwMsg" class="text-center text-red-600 text-sm"></p>
     </div>
+
     <!-- 主畫面 -->
     <div id="mainView" class="hidden space-y-6">
       <p class="text-center text-gray-800 font-semibold">部門：<span id="dept"></span></p>
@@ -74,9 +76,10 @@
           <li class="text-gray-500">載入中...</li>
         </ul>
       </div>
+
       <div class="bg-white bg-opacity-90 p-4 rounded-lg shadow">
         <h2 class="text-lg font-bold mb-2">✍️ 簽名區</h2>
-        <canvas id="signature" width="600" height="200"></canvas>
+        <canvas id="signature"></canvas>
         <div class="flex justify-between mt-4">
           <button onclick="clearPad()" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded transition">清除</button>
           <button onclick="submitSignature()" class="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-500 transition">送出簽名</button>
@@ -85,9 +88,77 @@
       </div>
     </div>
   </div>
+
 <script>
 const api = 'https://aged-lake-0db4.chiachun12171217.workers.dev';
 let userToken = '', folderId = '', currentFileList = [];
+
+/**
+ * 初始化簽名畫布 → 確保在 mainView 顯示後再呼叫
+ * 這樣能在手機上保持精準度 & 不會拖動
+ */
+function initSignatureCanvas() {
+  const canvas = document.getElementById('signature');
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+  let lastX = 0, lastY = 0;
+
+  function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    // 以畫布容器的可用寬度為基準，高度就設定為寬度的 0.33
+    const width = canvas.offsetWidth;
+    const height = Math.floor(width * 0.33);
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.height = height + 'px';
+    canvas.style.width = width + 'px';
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+  }
+
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  function getOffset(e) {
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches && e.touches[0]) {
+      return [e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top];
+    } else {
+      return [e.offsetX, e.offsetY];
+    }
+  }
+
+  function startDraw(e) {
+    drawing = true;
+    const [x, y] = getOffset(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    [lastX, lastY] = [x, y];
+  }
+
+  function draw(e) {
+    if (!drawing) return;
+    const [x, y] = getOffset(e);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    [lastX, lastY] = [x, y];
+  }
+
+  function endDraw() {
+    drawing = false;
+  }
+
+  canvas.addEventListener('mousedown', startDraw);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup', endDraw);
+  canvas.addEventListener('mouseleave', endDraw);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); startDraw(e); }, { passive: false });
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); draw(e); }, { passive: false });
+  canvas.addEventListener('touchend', endDraw);
+}
 
 function login() {
   const id = document.getElementById("empId").value.trim();
@@ -95,32 +166,30 @@ function login() {
   fetch(api + '/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      action: 'login',
-      employeeId: id,
-      password: pw
-    })
+    body: new URLSearchParams({ action: 'login', employeeId: id, password: pw })
   })
     .then(res => res.json())
     .then(data => {
       if (data.success) {
         if (data.needPasswordChange) {
-          document.getElementById("loginView").classList.add("hidden");
-          document.getElementById("changePwView").classList.remove("hidden");
+          loginView.classList.add("hidden");
+          changePwView.classList.remove("hidden");
         } else {
-          document.getElementById("loginView").classList.add("hidden");
-          document.getElementById("mainView").classList.remove("hidden");
-          document.getElementById("dept").textContent = data.department;
+          loginView.classList.add("hidden");
+          mainView.classList.remove("hidden");
+          dept.textContent = data.department;
           userToken = data.token;
           folderId = data.folderId;
           loadFileList();
+          // ⭐ 在這裡初始化簽名
+          setTimeout(initSignatureCanvas, 100);
         }
       } else {
-        document.getElementById("loginMsg").textContent = data.message;
+        loginMsg.textContent = data.message;
       }
     })
     .catch(err => {
-      document.getElementById("loginMsg").textContent = "❌ 錯誤：「login」API 發生問題";
+      loginMsg.textContent = "❌ 錯誤：「login」API 發生問題";
     });
 }
 
@@ -144,7 +213,7 @@ function changePassword() {
         alert("密碼變更成功，請重新登入");
         location.reload();
       } else {
-        document.getElementById("pwMsg").textContent = data.message;
+        pwMsg.textContent = data.message;
       }
     });
 }
@@ -164,51 +233,15 @@ function loadFileList() {
     });
 }
 
-const canvas = document.getElementById("signature");
-const ctx = canvas.getContext("2d");
-let drawing = false;
-
-function getOffset(e) {
-  const rect = canvas.getBoundingClientRect();
-  if (e.touches && e.touches[0]) {
-    return [e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top];
-  } else {
-    return [e.offsetX, e.offsetY];
-  }
-}
-function startDraw(e) {
-  drawing = true;
-  const [x, y] = getOffset(e);
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-}
-function draw(e) {
-  if (!drawing) return;
-  const [x, y] = getOffset(e);
-  ctx.lineTo(x, y);
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
-  ctx.lineCap = 'round';
-  ctx.stroke();
-}
-function endDraw() {
-  drawing = false;
-}
-
-canvas.addEventListener('mousedown', startDraw);
-canvas.addEventListener('mousemove', draw);
-canvas.addEventListener('mouseup', endDraw);
-canvas.addEventListener('mouseleave', endDraw);
-canvas.addEventListener('touchstart', e => { e.preventDefault(); startDraw(e); }, { passive: false });
-canvas.addEventListener('touchmove', e => { e.preventDefault(); draw(e); }, { passive: false });
-canvas.addEventListener('touchend', endDraw);
-
 function clearPad() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const c = document.getElementById('signature');
+  const context = c.getContext('2d');
+  context.clearRect(0, 0, c.width, c.height);
 }
 
 function submitSignature() {
-  const dataUrl = canvas.toDataURL("image/png");
+  const c = document.getElementById('signature');
+  const dataUrl = c.toDataURL("image/png");
   fetch(`${api}/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -222,14 +255,14 @@ function submitSignature() {
     .then(res => res.json())
     .then(data => {
       if (data.success) {
-        document.getElementById("result").textContent = "✅ PDF 產出成功！";
+        result.textContent = "✅ PDF 產出成功！";
         loadFileList();
       } else {
-        document.getElementById("result").textContent = data.message;
+        result.textContent = data.message;
       }
     })
-    .catch(err => {
-      document.getElementById("result").textContent = "❌ 發送錯誤，請稍後再試";
+    .catch(() => {
+      result.textContent = "❌ 發送錯誤，請稍後再試";
     });
 }
 </script>
