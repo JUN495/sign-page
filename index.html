@@ -3,53 +3,96 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>登入系統</title>
+  <title>員工登入系統</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100 font-sans">
   <div class="min-h-screen flex items-center justify-center px-4">
-    <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
-      <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">🔐 管理登入系統</h2>
-      <div class="space-y-4">
-        <div>
-          <label class="block text-gray-600 mb-1">帳號</label>
-          <input type="text" id="username" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="輸入帳號" value="admin">
-        </div>
-        <div>
-          <label class="block text-gray-600 mb-1">密碼</label>
-          <input type="password" id="password" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="輸入密碼" value="1234">
-        </div>
-        <button onclick="login()" class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-500 font-bold">登入</button>
-        <p id="result" class="text-center text-sm mt-4"></p>
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md space-y-6">
+      <h2 class="text-2xl font-bold text-center text-gray-800">🔐 員工登入系統</h2>
+
+      <!-- 登入區 -->
+      <div id="login-section">
+        <input id="employeeId" class="w-full border px-3 py-2 rounded mt-2" placeholder="員工編號 (如 CC0384)">
+        <input id="password" class="w-full border px-3 py-2 rounded mt-2" type="password" placeholder="密碼">
+        <button onclick="login()" class="bg-blue-600 hover:bg-blue-500 w-full text-white py-2 rounded font-bold mt-4">登入</button>
       </div>
+
+      <!-- 首次登入變更密碼區 -->
+      <div id="change-password-section" class="hidden">
+        <p class="text-sm text-gray-600 mb-2">首次登入，請變更密碼：</p>
+        <input id="newPassword" class="w-full border px-3 py-2 rounded mt-2" type="password" placeholder="新密碼">
+        <button onclick="changePassword()" class="bg-yellow-500 hover:bg-yellow-400 w-full text-white py-2 rounded font-bold mt-4">變更密碼</button>
+      </div>
+
+      <!-- 結果 -->
+      <p id="result" class="text-center text-sm mt-4 text-red-600"></p>
     </div>
   </div>
 
   <script>
-    // 請使用你的 Cloudflare Worker 網址！
-    const proxyUrl = 'https://aged-lake-0db4.chiachun12171217.workers.dev/';
+    const gasUrl = "https://aged-lake-0db4.chiachun12171217.workers.dev"; // Cloudflare Worker
+
+    let currentEmployeeId = "";
+    let currentPassword = "";
 
     function login() {
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
-      const result = document.getElementById("result");
-      result.textContent = "登入中...";
+      const employeeId = document.getElementById("employeeId").value.trim();
+      const password = document.getElementById("password").value.trim();
+      currentEmployeeId = employeeId;
+      currentPassword = password;
 
-      fetch(`${proxyUrl}?action=login&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            result.textContent = `✅ 登入成功！Token：${data.token}`;
-            result.className = "text-green-600 text-center text-sm mt-4";
-          } else {
-            result.textContent = `❌ 登入失敗：${data.message}`;
-            result.className = "text-red-600 text-center text-sm mt-4";
-          }
-        })
-        .catch(err => {
-          result.textContent = `❌ 錯誤：${err.message}`;
-          result.className = "text-red-600 text-center text-sm mt-4";
-        });
+      document.getElementById("result").textContent = "登入中...";
+
+      fetch(`${gasUrl}?action=login&employeeId=${employeeId}&password=${password}`, {
+        method: "GET"
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.needPasswordChange) {
+          document.getElementById("login-section").classList.add("hidden");
+          document.getElementById("change-password-section").classList.remove("hidden");
+          document.getElementById("result").textContent = "請變更密碼後重新登入。";
+        } else if (data.success) {
+          document.getElementById("result").classList.remove("text-red-600");
+          document.getElementById("result").classList.add("text-green-600");
+          document.getElementById("result").innerHTML = `✅ 登入成功！<br>部門：<b>${data.department}</b><br><a href="https://drive.google.com/drive/u/0/folders/請改成你的資料夾ID" target="_blank" class="text-blue-600 underline">👉 前往部門資料夾</a>`;
+        } else {
+          document.getElementById("result").textContent = `❌ ${data.message}`;
+        }
+      })
+      .catch(err => {
+        document.getElementById("result").textContent = "發生錯誤：" + err.message;
+      });
+    }
+
+    function changePassword() {
+      const newPassword = document.getElementById("newPassword").value.trim();
+      if (!newPassword) {
+        document.getElementById("result").textContent = "請輸入新密碼";
+        return;
+      }
+
+      fetch(`${gasUrl}?action=changePassword&employeeId=${currentEmployeeId}&oldPassword=${currentPassword}&newPassword=${newPassword}`, {
+        method: "GET"
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          document.getElementById("change-password-section").classList.add("hidden");
+          document.getElementById("login-section").classList.remove("hidden");
+          document.getElementById("password").value = "";
+          document.getElementById("newPassword").value = "";
+          document.getElementById("result").classList.remove("text-red-600");
+          document.getElementById("result").classList.add("text-green-600");
+          document.getElementById("result").textContent = "✅ 密碼變更成功，請重新登入";
+        } else {
+          document.getElementById("result").textContent = `❌ ${data.message}`;
+        }
+      })
+      .catch(err => {
+        document.getElementById("result").textContent = "變更密碼時發生錯誤：" + err.message;
+      });
     }
   </script>
 </body>
