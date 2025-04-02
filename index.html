@@ -32,6 +32,8 @@
       border-radius: 12px;
       border: 1px solid #ccc;
       background: white;
+      width: 100%;
+      height: auto;
     }
     #fileList li {
       padding: 0.5rem 1rem;
@@ -74,7 +76,7 @@
       </div>
       <div class="bg-white bg-opacity-90 p-4 rounded-lg shadow">
         <h2 class="text-lg font-bold mb-2">✍️ 簽名區</h2>
-        <canvas id="signature" class="w-full" height="150"></canvas>
+        <canvas id="signature" width="600" height="200"></canvas>
         <div class="flex justify-between mt-4">
           <button onclick="clearPad()" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded transition">清除</button>
           <button onclick="submitSignature()" class="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-500 transition">送出簽名</button>
@@ -83,127 +85,153 @@
       </div>
     </div>
   </div>
-  <script>
-    const api = 'https://aged-lake-0db4.chiachun12171217.workers.dev';
-    let currentEmp = '', currentFolder = '', currentList = [];
+<script>
+const api = 'https://aged-lake-0db4.chiachun12171217.workers.dev';
+let userToken = '', folderId = '', currentFileList = [];
 
-    function login() {
-      const empId = document.getElementById('empId').value;
-      const empPw = document.getElementById('empPw').value;
-      fetch(api, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ action: 'login', employeeId: empId, password: empPw })
-      }).then(res => res.json()).then(res => {
-        if (res.success && res.needPasswordChange) {
-          loginView.classList.add('hidden');
-          changePwView.classList.remove('hidden');
-          currentEmp = empId;
-        } else if (res.success) {
-          currentFolder = res.folderId;
-          currentEmp = empId;
-          dept.textContent = res.department;
-          loginView.classList.add('hidden');
-          mainView.classList.remove('hidden');
-          loadFileList();
+function login() {
+  const id = document.getElementById("empId").value.trim();
+  const pw = document.getElementById("empPw").value.trim();
+  fetch(api + '/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      action: 'login',
+      employeeId: id,
+      password: pw
+    })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        if (data.needPasswordChange) {
+          document.getElementById("loginView").classList.add("hidden");
+          document.getElementById("changePwView").classList.remove("hidden");
         } else {
-          loginMsg.textContent = res.message;
-        }
-      });
-    }
-
-    function loadFileList() {
-      fetch(`${api}?action=getPdfList&folderId=${encodeURIComponent(currentFolder)}`)
-        .then(res => res.json())
-        .then(res => {
-          const fileList = document.getElementById('fileList');
-          fileList.innerHTML = '';
-          currentList = res.files || [];
-          if (currentList.length > 0) {
-            currentList.forEach(file => {
-              const li = document.createElement('li');
-              li.textContent = `${file.name}（上傳時間：${file.date}）`;
-              fileList.appendChild(li);
-            });
-          } else {
-            fileList.innerHTML = '<li class="text-gray-500">尚無 PDF 檔案</li>';
-          }
-        })
-        .catch(() => {
-          document.getElementById('fileList').innerHTML = '<li class="text-red-500">無法載入 PDF 清單</li>';
-        });
-    }
-
-    function clearPad() {
-      const canvas = document.getElementById("signature");
-      const ctx = canvas.getContext("2d");
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-
-    function submitSignature() {
-      const canvas = document.getElementById("signature");
-      const dataUrl = canvas.toDataURL("image/png");
-      fetch(api, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          action: 'generateSignedPdf',
-          dataUrl,
-          folderId: currentFolder,
-          fileList: JSON.stringify(currentList)
-        })
-      }).then(res => res.json()).then(res => {
-        if (res.success) {
-          result.textContent = `✅ 已產出簽核 PDF！`;
+          document.getElementById("loginView").classList.add("hidden");
+          document.getElementById("mainView").classList.remove("hidden");
+          document.getElementById("dept").textContent = data.department;
+          userToken = data.token;
+          folderId = data.folderId;
           loadFileList();
-        } else {
-          result.textContent = `❌ 錯誤：${res.message}`;
         }
-      }).catch(err => {
-        result.textContent = `❌ 發生錯誤：${err.message}`;
-      });
-    }
-
-    // ⭐ 簽名功能（滑鼠 & 手機）
-    const canvas = document.getElementById("signature");
-    const ctx = canvas.getContext("2d");
-    let drawing = false;
-
-    function getOffset(e) {
-      const rect = canvas.getBoundingClientRect();
-      if (e.touches && e.touches[0]) {
-        return [e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top];
       } else {
-        return [e.offsetX, e.offsetY];
+        document.getElementById("loginMsg").textContent = data.message;
       }
-    }
+    })
+    .catch(err => {
+      document.getElementById("loginMsg").textContent = "❌ 錯誤：「login」API 發生問題";
+    });
+}
 
-    function startDraw(e) {
-      drawing = true;
-      const [x, y] = getOffset(e);
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-    }
-    function draw(e) {
-      if (!drawing) return;
-      const [x, y] = getOffset(e);
-      ctx.lineTo(x, y);
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.stroke();
-    }
-    function endDraw() {
-      drawing = false;
-    }
+function changePassword() {
+  const id = document.getElementById("empId").value.trim();
+  const oldPw = document.getElementById("oldPw").value.trim();
+  const newPw = document.getElementById("newPw").value.trim();
+  fetch(`${api}/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      action: 'changePassword',
+      employeeId: id,
+      oldPassword: oldPw,
+      newPassword: newPw
+    })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        alert("密碼變更成功，請重新登入");
+        location.reload();
+      } else {
+        document.getElementById("pwMsg").textContent = data.message;
+      }
+    });
+}
 
-    canvas.addEventListener('mousedown', startDraw);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', endDraw);
-    canvas.addEventListener('mouseleave', endDraw);
-    canvas.addEventListener('touchstart', e => { e.preventDefault(); startDraw(e); }, { passive: false });
-    canvas.addEventListener('touchmove', e => { e.preventDefault(); draw(e); }, { passive: false });
-    canvas.addEventListener('touchend', endDraw);
-  </script>
+function loadFileList() {
+  fetch(`${api}/?action=getPdfList&folderId=${folderId}`)
+    .then(res => res.json())
+    .then(data => {
+      currentFileList = data.files;
+      const list = document.getElementById("fileList");
+      list.innerHTML = "";
+      data.files.forEach(file => {
+        const li = document.createElement("li");
+        li.textContent = `${file.name}（${file.date}）`;
+        list.appendChild(li);
+      });
+    });
+}
+
+const canvas = document.getElementById("signature");
+const ctx = canvas.getContext("2d");
+let drawing = false;
+
+function getOffset(e) {
+  const rect = canvas.getBoundingClientRect();
+  if (e.touches && e.touches[0]) {
+    return [e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top];
+  } else {
+    return [e.offsetX, e.offsetY];
+  }
+}
+function startDraw(e) {
+  drawing = true;
+  const [x, y] = getOffset(e);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+}
+function draw(e) {
+  if (!drawing) return;
+  const [x, y] = getOffset(e);
+  ctx.lineTo(x, y);
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+}
+function endDraw() {
+  drawing = false;
+}
+
+canvas.addEventListener('mousedown', startDraw);
+canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('mouseup', endDraw);
+canvas.addEventListener('mouseleave', endDraw);
+canvas.addEventListener('touchstart', e => { e.preventDefault(); startDraw(e); }, { passive: false });
+canvas.addEventListener('touchmove', e => { e.preventDefault(); draw(e); }, { passive: false });
+canvas.addEventListener('touchend', endDraw);
+
+function clearPad() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function submitSignature() {
+  const dataUrl = canvas.toDataURL("image/png");
+  fetch(`${api}/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      action: 'generateSignedPdf',
+      dataUrl,
+      folderId,
+      fileList: JSON.stringify(currentFileList)
+    })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById("result").textContent = "✅ PDF 產出成功！";
+        loadFileList();
+      } else {
+        document.getElementById("result").textContent = data.message;
+      }
+    })
+    .catch(err => {
+      document.getElementById("result").textContent = "❌ 發送錯誤，請稍後再試";
+    });
+}
+</script>
 </body>
 </html>
