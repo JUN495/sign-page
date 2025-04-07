@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>📄 數位中心資料確認系統</title>
   
-  <!-- Tailwind -->
+  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC&display=swap" rel="stylesheet">
@@ -14,6 +14,7 @@
       margin: 0; 
       padding: 0;
       font-family: 'Noto Sans TC', sans-serif;
+      /* 白底 + 漸層背景 + 黑字 */
       background: linear-gradient(135deg, #e0f2fe, #fef9c3);
       color: #000;
       min-height: 100vh;
@@ -62,16 +63,24 @@
       transform: translateX(0);
       opacity: 1;
     }
+    /* 防止標題在手機上斷行 */
+    .nowrap-title {
+      white-space: nowrap;
+    }
   </style>
 </head>
 
 <body class="min-h-screen flex items-center justify-center">
 
+  <!-- Toast 容器 -->
   <div id="toastContainer" class="fixed top-4 right-4 space-y-2 z-50"></div>
 
+  <!-- 玻璃效果容器 -->
   <div class="glass w-full max-w-2xl p-8 rounded-2xl space-y-6">
+    
+    <!-- 標頭 -->
     <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-4">
-      <h1 class="text-3xl font-bold drop-shadow whitespace-nowrap">
+      <h1 class="text-3xl font-bold drop-shadow nowrap-title">
         📄 數位中心資料確認系統
       </h1>
     </div>
@@ -99,7 +108,7 @@
       <p id="loginMsg" class="text-center text-red-600 text-sm"></p>
     </div>
 
-    <!-- 首次登入改密碼畫面 -->
+    <!-- 首次登入改密碼 -->
     <div id="changePwView" class="hidden space-y-4">
       <input
         id="oldPw"
@@ -124,7 +133,7 @@
 
     <!-- 主畫面 -->
     <div id="mainView" class="hidden space-y-6">
-      <!-- 基本資料 + 登出按鈕 -->
+      <!-- 頭部：姓名 / 職稱 / 登出 -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
         <div class="flex flex-wrap items-center gap-4">
           <p class="font-semibold">
@@ -144,68 +153,459 @@
         </button>
       </div>
 
-      <!-- 若有多部門 => 下拉選單切換 (略) -->
-      <!-- 檔案清單 + 分類按鈕 (略) -->
-      <!-- 簽名區 (略) -->
+      <!-- 多部門切換區塊 -->
+      <div class="bg-white bg-opacity-90 p-4 rounded-lg shadow">
+        <p id="deptHint" class="text-sm text-gray-600 mb-2"></p>
+        <label for="deptSelect" class="block mb-1 text-sm font-semibold">請選擇要處理的部門</label>
+        <select id="deptSelect" class="border p-1 rounded mb-2 hidden"></select>
+        <p>
+          您目前操作的部門：
+          <span id="deptName" class="font-bold text-blue-600"></span>
+        </p>
+      </div>
+
+      <!-- 檔案清單 + 分類按鈕 -->
+      <div class="bg-white bg-opacity-90 p-4 rounded-lg shadow relative">
+        <h2 class="text-lg font-bold mb-2">📄 檔案清單</h2>
+        <!-- 分類按鈕群 -->
+        <div class="flex gap-2 mb-2">
+          <button id="pdfBtn" onclick="renderFileList('pdf')" class="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">PDF(0)</button>
+          <button id="wordBtn" onclick="renderFileList('word')" class="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">Word(0)</button>
+          <button id="othersBtn" onclick="renderFileList('others')" class="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">Others(0)</button>
+          <button onclick="renderFileList('all')" class="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">All</button>
+        </div>
+        <ul id="fileList" class="text-sm space-y-2">
+          <li class="text-gray-500">載入中...</li>
+        </ul>
+      </div>
+
+      <!-- 簽名區 -->
+      <div class="bg-white bg-opacity-90 p-4 rounded-lg shadow">
+        <h2 class="text-lg font-bold mb-2">✍️ 簽名區</h2>
+        <canvas id="signature"></canvas>
+        <div class="flex justify-between mt-4">
+          <button
+            onclick="clearPad()"
+            class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded transition"
+          >
+            清除
+          </button>
+          <button
+            id="submitBtn"
+            onclick="submitSignature()"
+            class="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-500 transition"
+          >
+            送出簽名
+          </button>
+        </div>
+        <p id="result" class="mt-4 text-center text-green-700 text-sm font-medium"></p>
+      </div>
     </div>
   </div>
 
 <script>
-const api = "https://example.com/"; // 您的後端 URL
+/*****************************************************
+ * 全域變數
+*****************************************************/
+const api = "https://YOUR_GAS_SCRIPT_URL/"; // ★ 請改成您的後端API URL
 let isSubmitting = false;
+let departments = [], folderIds = [];
+let currentDeptIndex = 0;
+let currentFileList = [];
 
+/*****************************************************
+ * Toast (提示訊息)
+*****************************************************/
 function showToast(msg, success=true){
-  // ...
+  const container = document.getElementById('toastContainer');
+  const toastDiv = document.createElement('div');
+  toastDiv.className = `
+    toast px-4 py-2 rounded shadow-lg mb-2
+    ${success ? 'bg-green-500' : 'bg-red-500'}
+    text-white
+  `;
+  toastDiv.textContent = msg;
+  container.appendChild(toastDiv);
+
+  requestAnimationFrame(()=>{
+    toastDiv.classList.add('toast-show');
+  });
+  setTimeout(()=>{
+    toastDiv.classList.remove('toast-show');
+    setTimeout(()=>{
+      if(toastDiv.parentNode) toastDiv.parentNode.removeChild(toastDiv);
+    },300);
+  },2000);
 }
 
-// 登入
+/*****************************************************
+ * 登入
+*****************************************************/
 function login(){
   const idValue = empId.value.trim();
   const pwValue = empPw.value.trim();
+  loginMsg.textContent = ''; // 清掉舊訊息
 
   fetch(api, {
-    method:'POST',
-    headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
-    body:new URLSearchParams({
-      action: 'login',
-      employeeId: idValue,
-      password: pwValue
+    method: 'POST',
+    headers: {'Content-Type':'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({
+      action:'login',
+      employeeId:idValue,
+      password:pwValue
     })
   })
   .then(r=>r.json())
   .then(data=>{
     if(data.success){
-      // 可能有 needPasswordChange
+      // 若 needPasswordChange => 顯示改密碼畫面
       if(data.needPasswordChange){
         loginView.classList.add('hidden');
         changePwView.classList.remove('hidden');
       } else {
+        // 一般登入
         loginView.classList.add('hidden');
         mainView.classList.remove('hidden');
         empName.textContent = data.name || '';
         title.textContent = data.title || '';
+        
+        // 多部門 (若只有1個 => 直接顯示；多個 => 顯示下拉選單)
+        departments = data.departments || [];
+        folderIds = data.folderIds || [];
+        setupDepartmentSelector();
+
+        // 先載入第一個部門檔案
+        loadFileList();
+        setTimeout(initSignatureCanvas,150);
+
         showToast('✅ 登入成功！');
-        // ... 載入檔案 + 簽名畫布
       }
     } else {
-      // ★ 若後端回傳 "目前尚未開放簽核" 或 "帳密錯誤"、"其他"
-      //   皆在這裡顯示
+      // ★ 若後端回傳「目前尚未開放簽核」或「帳密錯誤」等
       showToast(data.message, false);
-      loginMsg.textContent = data.message;
+      loginMsg.textContent = data.message; 
     }
   })
-  .catch(err=>{
+  .catch(e=>{
     showToast('❌ login API 發生問題', false);
-    console.error(err);
+    console.error(e);
   });
 }
 
+/*****************************************************
+ * 首次登入 → 改密碼
+*****************************************************/
 function changePassword(){
-  // ...
+  const idValue = empId.value.trim();
+  const oldPwValue = oldPw.value.trim();
+  const newPwValue = newPw.value.trim();
+  pwMsg.textContent = '';
+
+  fetch(api, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
+    body:new URLSearchParams({
+      action:'changePassword',
+      employeeId:idValue,
+      oldPassword:oldPwValue,
+      newPassword:newPwValue
+    })
+  })
+  .then(r=>r.json())
+  .then(data=>{
+    if(data.success){
+      alert('密碼變更成功，請重新登入');
+      location.reload();
+    } else {
+      pwMsg.textContent = data.message;
+      showToast(data.message, false);
+    }
+  })
+  .catch(e=>{
+    showToast('❌ changePassword API 發生問題', false);
+    console.error(e);
+  });
 }
 
+/*****************************************************
+ * 多部門切換 (若 departments.length>1 => 顯示下拉)
+*****************************************************/
+function setupDepartmentSelector(){
+  const deptHint = document.getElementById('deptHint');
+  const deptSelect = document.getElementById('deptSelect');
+  const deptNameEl = document.getElementById('deptName');
+
+  if(departments.length <= 1){
+    deptHint.textContent = '您目前只有一個部門要處理。';
+    deptSelect.classList.add('hidden');
+    deptNameEl.textContent = departments[0] || '';
+    currentDeptIndex = 0;
+  } else {
+    deptHint.textContent = `您目前有 ${departments.length} 個部門需要簽核：${departments.join('、')}`;
+    deptSelect.classList.remove('hidden');
+    deptSelect.innerHTML = '';
+
+    departments.forEach((d, idx)=>{
+      const option = document.createElement('option');
+      option.value = idx;
+      option.textContent = d;
+      deptSelect.appendChild(option);
+    });
+    deptSelect.selectedIndex = 0;
+    currentDeptIndex = 0;
+    deptNameEl.textContent = departments[0];
+
+    deptSelect.addEventListener('change', (e)=>{
+      currentDeptIndex = parseInt(e.target.value,10);
+      deptNameEl.textContent = departments[currentDeptIndex];
+      // 切換部門 => 重新載入清單
+      loadFileList();
+    });
+  }
+}
+
+/*****************************************************
+ * 載入檔案清單 (PDF / Word / Others)
+*****************************************************/
+function loadFileList(){
+  fileList.innerHTML = '載入中...';
+
+  if(currentDeptIndex<0 || currentDeptIndex>=folderIds.length){
+    fileList.innerHTML = '(無資料夾ID)';
+    return;
+  }
+  const fid = folderIds[currentDeptIndex];
+
+  fetch(`${api}?action=getFileList&folderId=${fid}`)
+    .then(r=>r.json())
+    .then(data=>{
+      if(!data.success){
+        fileList.innerHTML = '(無法取得清單)';
+        showToast(data.message || '❌ 無法取得檔案清單', false);
+        return;
+      }
+      currentFileList = data.files || [];
+
+      let pdfCount=0, wordCount=0, othersCount=0;
+      currentFileList.forEach(f=>{
+        const ext = (f.extension || '').toLowerCase();
+        if(ext==='pdf'){
+          pdfCount++;
+        } else if(['doc','docx','gdoc'].includes(ext)){
+          wordCount++;
+        } else {
+          othersCount++;
+        }
+      });
+
+      pdfBtn.innerHTML = `PDF ${
+        pdfCount>0
+        ? `<span class="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-1 inline-block">${pdfCount}</span>`
+        : '(0)'
+      }`;
+      wordBtn.innerHTML = `Word ${
+        wordCount>0
+        ? `<span class="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-1 inline-block">${wordCount}</span>`
+        : '(0)'
+      }`;
+      othersBtn.innerHTML = `Others ${
+        othersCount>0
+        ? `<span class="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-1 inline-block">${othersCount}</span>`
+        : '(0)'
+      }`;
+
+      renderFileList('all');
+    })
+    .catch(e=>{
+      showToast('❌ getFileList API 發生問題', false);
+      console.error(e);
+    });
+}
+
+// 顯示檔案清單
+function renderFileList(category){
+  fileList.innerHTML = '';
+  let filtered = currentFileList.filter(f=>{
+    const ext = (f.extension||'').toLowerCase();
+    if(category==='all') return true;
+    if(category==='pdf') return (ext==='pdf');
+    if(category==='word') return ['doc','docx','gdoc'].includes(ext);
+    // others
+    return !(['pdf','doc','docx','gdoc'].includes(ext));
+  });
+
+  if(filtered.length===0){
+    const li = document.createElement('li');
+    li.textContent = '(無檔案)';
+    li.className = 'text-gray-500';
+    fileList.appendChild(li);
+  } else {
+    filtered.forEach(f=>{
+      const li = document.createElement('li');
+      li.textContent = `${f.name}（${f.date}）`;
+      fileList.appendChild(li);
+    });
+  }
+}
+
+/*****************************************************
+ * 簽名畫布 初始化
+*****************************************************/
+function initSignatureCanvas(){
+  const c = signature;
+  const ctx = c.getContext('2d');
+  let drawing=false, lastX=0, lastY=0;
+
+  function resizeCanvas(){
+    const dpr = window.devicePixelRatio || 1;
+    const w = c.offsetWidth;
+    // 手機 & 桌機比例
+    let ratio = window.innerWidth<768 ? 0.55 : 0.33;
+    const h = Math.floor(w*ratio);
+
+    c.width = w*dpr;
+    c.height = h*dpr;
+    c.style.height = h+'px';
+    c.style.width = w+'px';
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(dpr,dpr);
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  function getOffset(e){
+    const rect = c.getBoundingClientRect();
+    if(e.touches?.[0]) {
+      return [ e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top ];
+    } else {
+      return [ e.offsetX, e.offsetY ];
+    }
+  }
+  function startDraw(e){
+    drawing=true;
+    const [x,y] = getOffset(e);
+    ctx.beginPath();
+    ctx.moveTo(x,y);
+    [lastX,lastY] = [x,y];
+  }
+  function draw(e){
+    if(!drawing)return;
+    const [x,y] = getOffset(e);
+    ctx.lineTo(x,y);
+    ctx.strokeStyle='#000';
+    ctx.lineWidth=2;
+    ctx.lineCap='round';
+    ctx.stroke();
+    [lastX,lastY] = [x,y];
+  }
+  function endDraw(){
+    drawing=false;
+  }
+  c.addEventListener('mousedown', startDraw);
+  c.addEventListener('mousemove', draw);
+  c.addEventListener('mouseup', endDraw);
+  c.addEventListener('mouseleave', endDraw);
+
+  c.addEventListener('touchstart', ev=>{
+    ev.preventDefault();
+    startDraw(ev);
+  },{passive:false});
+  c.addEventListener('touchmove', ev=>{
+    ev.preventDefault();
+    draw(ev);
+  },{passive:false});
+  c.addEventListener('touchend', endDraw);
+}
+
+// 清除簽名
+function clearPad(){
+  const cx = signature.getContext('2d');
+  cx.clearRect(0,0,signature.width, signature.height);
+}
+
+/*****************************************************
+ * 送出簽名 → generateSignedPdf
+*****************************************************/
+function downscaleCanvas(originalCanvas, scale=0.3){
+  if(window.innerWidth>768) scale=0.6; // 桌機比例
+  const tmp = document.createElement('canvas');
+  const cx = tmp.getContext('2d');
+  tmp.width = originalCanvas.width * scale;
+  tmp.height = originalCanvas.height * scale;
+  cx.drawImage(originalCanvas,0,0,tmp.width, tmp.height);
+  return tmp.toDataURL('image/png');
+}
+
+function submitSignature(){
+  if(isSubmitting)return;
+  toggleSubmitLoading(true);
+
+  if(currentDeptIndex<0 || currentDeptIndex>=folderIds.length){
+    showToast('❌ 未選到部門資料夾', false);
+    toggleSubmitLoading(false);
+    return;
+  }
+  const fid = folderIds[currentDeptIndex];
+  const dataUrl = downscaleCanvas(signature);
+
+  fetch(api, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams({
+      action:'generateSignedPdf',
+      dataUrl,
+      folderId: fid,
+      fileList: JSON.stringify(currentFileList)
+    })
+  })
+  .then(r=>r.json())
+  .then(data=>{
+    toggleSubmitLoading(false);
+    if(data.success){
+      result.textContent='✅ PDF 產出成功！';
+      showToast('✅ PDF 產出成功！');
+      // 簽完後重新載入清單 → 看是否顯示 "已完成" 狀態
+      loadFileList();
+    } else {
+      // 可能 "已完成" 或其他錯誤
+      result.textContent = data.message;
+      showToast(data.message, false);
+    }
+  })
+  .catch(e=>{
+    toggleSubmitLoading(false);
+    result.textContent='❌ 發生錯誤';
+    showToast('❌ 發送錯誤，請稍後再試', false);
+    console.error(e);
+  });
+}
+
+/*****************************************************
+ * 登出
+*****************************************************/
 function logout(){
   location.reload();
+}
+
+/*****************************************************
+ * 防重複點擊
+*****************************************************/
+function toggleSubmitLoading(loading){
+  const btn = document.getElementById('submitBtn');
+  if(!btn)return;
+  if(loading){
+    isSubmitting=true;
+    btn.disabled=true;
+    btn.textContent='處理中...';
+    btn.classList.remove('hover:bg-indigo-500');
+    btn.classList.add('bg-gray-400');
+  } else {
+    isSubmitting=false;
+    btn.disabled=false;
+    btn.textContent='送出簽名';
+    btn.classList.remove('bg-gray-400');
+    btn.classList.add('bg-indigo-600','hover:bg-indigo-500');
+  }
 }
 </script>
 </body>
