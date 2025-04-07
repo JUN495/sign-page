@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" class="">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -15,11 +15,9 @@
   
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC&display=swap" rel="stylesheet">
   <style>
-    html, body {
+    /* 預設 body 文字淺色 = 灰字, 深色 = 白字 */
+    body {
       font-family: 'Noto Sans TC', sans-serif;
-      background: linear-gradient(135deg, #e0f2fe, #fef9c3);
-      min-height: 100vh;
-      /* 預設不加 class="dark" => 預設亮色 */
     }
     .dark body {
       background: #1e293b; /* Slate-800 */
@@ -70,17 +68,30 @@
   </style>
 </head>
 
-<body class="dark:bg-slate-800 dark:text-gray-100 flex items-center justify-center p-6">
+<!-- 
+  預設亮色模式 => <html lang="zh-Hant" class="">
+  若想預設深色，直接改成 <html lang="zh-Hant" class="dark">
+-->
+<body class="bg-[linear-gradient(135deg,_#e0f2fe,_#fef9c3)] text-gray-800 dark:text-gray-100 flex items-center justify-center p-6">
 
   <!-- Toast 容器 -->
   <div id="toastContainer" class="fixed top-4 right-4 space-y-2 z-50"></div>
 
   <div class="glass w-full max-w-2xl p-8 rounded-2xl space-y-6 dark:bg-white/10">
-    <div class="flex justify-between items-center mb-4">
+    <!-- 
+      flex-col: 手機(小螢幕)上下排列
+      sm:flex-row: sm(640px以上)以上橫向排列
+      gap-2: 兩元素之間留點空隙
+      items-start: 讓標題與按鈕對齊上方 (mobile)
+    -->
+    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-4">
       <h1 class="text-3xl font-bold drop-shadow">
         📄 數資中心資料確認系統
       </h1>
-      <!-- 深色模式切換按鈕 (預設亮色 => 按一下進入深色 => 按鈕文字改成「切換亮色」) -->
+      <!-- 
+        切換深色按鈕 => default 顯示「切換深色」
+        按一下後 => 變深色 => 顯示「切換亮色」
+      -->
       <button id="toggleDarkBtn"
         onclick="toggleDarkMode()"
         class="bg-gray-300 dark:bg-slate-600 text-sm px-3 py-1 rounded"
@@ -91,11 +102,19 @@
 
     <!-- 登入畫面 -->
     <div id="loginView" class="space-y-4">
-      <input id="empId" placeholder="員工編號"
-        class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:text-black"/>
-      <input id="empPw" type="password" placeholder="密碼"
-        class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:text-black"/>
-      <button id="loginBtn"
+      <input
+        id="empId"
+        placeholder="員工編號"
+        class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:text-black"
+      />
+      <input
+        id="empPw"
+        type="password"
+        placeholder="密碼"
+        class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:text-black"
+      />
+      <button
+        id="loginBtn"
         onclick="login()"
         class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-500 transition"
       >
@@ -106,12 +125,22 @@
 
     <!-- 首次登入變更密碼 -->
     <div id="changePwView" class="hidden space-y-4">
-      <input id="oldPw" type="password" placeholder="舊密碼"
-        class="w-full border border-gray-300 p-3 rounded-lg dark:text-black"/>
-      <input id="newPw" type="password" placeholder="新密碼"
-        class="w-full border border-gray-300 p-3 rounded-lg dark:text-black"/>
-      <button onclick="changePassword()"
-        class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-500 transition">
+      <input
+        id="oldPw"
+        type="password"
+        placeholder="舊密碼"
+        class="w-full border border-gray-300 p-3 rounded-lg dark:text-black"
+      />
+      <input
+        id="newPw"
+        type="password"
+        placeholder="新密碼"
+        class="w-full border border-gray-300 p-3 rounded-lg dark:text-black"
+      />
+      <button
+        onclick="changePassword()"
+        class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-500 transition"
+      >
         變更密碼
       </button>
       <p id="pwMsg" class="text-center text-red-600 text-sm"></p>
@@ -119,21 +148,25 @@
 
     <!-- 主畫面 -->
     <div id="mainView" class="hidden space-y-6">
-      <!-- 頭部：部門/職稱/姓名 + 登出按鈕 -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
         <div class="flex flex-wrap items-center gap-4">
           <p class="font-semibold">
-            部門：<span id="dept" class="text-blue-600 dark:text-blue-400"></span>
+            部門：
+            <span id="dept" class="text-blue-600 dark:text-blue-400"></span>
           </p>
           <p class="font-semibold">
-            職稱：<span id="title" class="text-pink-600 dark:text-pink-400"></span>
+            職稱：
+            <span id="title" class="text-pink-600 dark:text-pink-400"></span>
           </p>
           <p class="font-semibold">
-            姓名：<span id="empName" class="text-green-600 dark:text-green-400"></span>
+            姓名：
+            <span id="empName" class="text-green-600 dark:text-green-400"></span>
           </p>
         </div>
-        <button onclick="logout()"
-          class="bg-red-500 text-white px-4 py-1 rounded hover:bg-red-400 transition">
+        <button
+          onclick="logout()"
+          class="bg-red-500 text-white px-4 py-1 rounded hover:bg-red-400 transition"
+        >
           登出
         </button>
       </div>
@@ -146,7 +179,7 @@
         </ul>
       </div>
 
-      <!-- 簽名區 + 預覽 PDF -->
+      <!-- 簽名區 -->
       <div class="bg-white bg-opacity-90 p-4 rounded-lg shadow dark:bg-slate-700 dark:bg-opacity-40 relative">
         <h2 class="text-lg font-bold mb-2">✍️ 簽名區</h2>
         <canvas id="signature"></canvas>
@@ -166,349 +199,305 @@
           </button>
         </div>
         <p id="result" class="mt-4 text-center text-green-700 dark:text-green-300 text-sm font-medium"></p>
-
-        <!-- PDF 預覽 區塊：隱藏，等成功產出後才顯示 -->
-        <div id="pdfPreviewWrapper" class="mt-4 hidden">
-          <h3 class="text-base font-semibold mb-2">預覽簽核 PDF</h3>
-          <iframe id="pdfPreviewFrame"
-            class="w-full h-96 border border-gray-300"
-            src=""
-          ></iframe>
-        </div>
       </div>
     </div>
   </div>
 
 <script>
-const api = "https://aged-lake-0db4.chiachun12171217.workers.dev"; // 後端 Worker
-let userToken = "",
-  folderId = "",
-  currentFileList = [],
-  lastPdfUrl = "",
-  isDark = false,
-  isSubmitting = false;
+let isDark = false; // 是否深色模式
+let isSubmitting = false; // 是否正在送出
+const api = "https://aged-lake-0db4.chiachun12171217.workers.dev"; // 你的 Worker 後端
+let folderId = "", currentFileList = [];
 
 /*****************************************************
- * 1. 深色模式切換
+ * 切換深色 / 亮色
 *****************************************************/
 function toggleDarkMode() {
-  const htmlEl = document.documentElement;
   isDark = !isDark;
+  const htmlEl = document.documentElement;
+  const btn = document.getElementById("toggleDarkBtn");
   if (isDark) {
-    // 切成 dark
-    htmlEl.classList.add('dark');
-    toggleDarkBtn.textContent = "切換亮色";
+    htmlEl.classList.add("dark");
+    btn.textContent = "切換亮色";
   } else {
-    // 切成 light
-    htmlEl.classList.remove('dark');
-    toggleDarkBtn.textContent = "切換深色";
+    htmlEl.classList.remove("dark");
+    btn.textContent = "切換深色";
   }
 }
 
 /*****************************************************
- * 2. Toast 提示
+ * Toast
 *****************************************************/
-function showToast(msg, isSuccess = true) {
+function showToast(msg, isSuccess=true) {
   const container = document.getElementById('toastContainer');
   const toastDiv = document.createElement('div');
   toastDiv.className = `
     toast px-4 py-2 rounded shadow-lg mb-2
-    ${isSuccess ? 'bg-green-500' : 'bg-red-500'} 
-    text-white
+    ${isSuccess ? 'bg-green-500' : 'bg-red-500'} text-white
   `;
   toastDiv.textContent = msg;
   container.appendChild(toastDiv);
 
-  // 進場
   requestAnimationFrame(() => {
     toastDiv.classList.add('toast-show');
   });
-
-  // 2 秒後自動關閉
   setTimeout(() => {
     toastDiv.classList.remove('toast-show');
     setTimeout(() => {
-      if (toastDiv.parentNode) {
-        toastDiv.parentNode.removeChild(toastDiv);
-      }
-    }, 300);
-  }, 2000);
+      if (toastDiv.parentNode) toastDiv.parentNode.removeChild(toastDiv);
+    },300);
+  },2000);
 }
 
 /*****************************************************
- * 3. 登入
+ * 登入
 *****************************************************/
 function login() {
   const idValue = empId.value.trim();
   const pwValue = empPw.value.trim();
 
-  fetch(api + "/", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      action: "login",
-      employeeId: idValue,
-      password: pwValue
+  fetch(api+'/', {
+    method:'POST',
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({
+      action:'login',
+      employeeId:idValue,
+      password:pwValue
     })
   })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        if (data.needPasswordChange) {
+    .then(r=>r.json())
+    .then(data=>{
+      if(data.success) {
+        if(data.needPasswordChange) {
           loginView.classList.add("hidden");
           changePwView.classList.remove("hidden");
         } else {
           loginView.classList.add("hidden");
           mainView.classList.remove("hidden");
-
           dept.textContent = data.department || "";
           title.textContent = data.title || "";
           empName.textContent = data.name || "";
-
           folderId = data.folderId;
-          loadFileList();
-          setTimeout(initSignatureCanvas, 150);
 
-          showToast("✅ 登入成功！");
+          loadFileList();
+          setTimeout(initSignatureCanvas,150);
+          showToast('✅ 登入成功！');
         }
       } else {
-        showToast(data.message, false);
+        showToast(data.message,false);
         loginMsg.textContent = data.message;
       }
     })
-    .catch(() => {
-      showToast("❌ login API 發生問題", false);
+    .catch(err=>{
+      showToast('❌ login API 發生問題',false);
     });
 }
 
 /*****************************************************
- * 4. 首次登入 → 改密碼
+ * 首次登入→改密碼
 *****************************************************/
 function changePassword() {
   const idValue = empId.value.trim();
   const oldPwValue = oldPw.value.trim();
   const newPwValue = newPw.value.trim();
 
-  fetch(api + "/", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      action: "changePassword",
-      employeeId: idValue,
-      oldPassword: oldPwValue,
-      newPassword: newPwValue
+  fetch(api+'/', {
+    method:'POST',
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({
+      action:'changePassword',
+      employeeId:idValue,
+      oldPassword:oldPwValue,
+      newPassword:newPwValue
     })
   })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        alert("密碼變更成功，請重新登入");
+    .then(r=>r.json())
+    .then(data=>{
+      if(data.success) {
+        alert('密碼變更成功，請重新登入');
         location.reload();
       } else {
         pwMsg.textContent = data.message;
-        showToast(data.message, false);
+        showToast(data.message,false);
       }
     })
-    .catch(() => {
-      showToast("❌ changePassword API 發生問題", false);
+    .catch(e=>{
+      showToast('❌ changePassword API 發生問題',false);
     });
 }
 
 /*****************************************************
- * 5. 載入 PDF 清單
+ * 載入 PDF 清單
 *****************************************************/
 function loadFileList() {
   fetch(`${api}/?action=getPdfList&folderId=${folderId}`)
-    .then(res => res.json())
-    .then(data => {
+    .then(r=>r.json())
+    .then(data=>{
       currentFileList = data.files || [];
-      fileList.innerHTML = "";
-      if (currentFileList.length === 0) {
-        const li = document.createElement("li");
-        li.textContent = "尚無 PDF 檔案";
-        li.className = "text-gray-500";
+      fileList.innerHTML="";
+      if(currentFileList.length===0) {
+        let li = document.createElement('li');
+        li.textContent='尚無 PDF 檔案';
+        li.className='text-gray-500';
         fileList.appendChild(li);
       } else {
-        currentFileList.forEach(file => {
-          const li = document.createElement("li");
-          li.textContent = `${file.name}（${file.date}）`;
+        currentFileList.forEach(f=>{
+          let li = document.createElement('li');
+          li.textContent=`${f.name}（${f.date}）`;
           fileList.appendChild(li);
         });
       }
     })
-    .catch(() => {
-      showToast("❌ getPdfList API 發生問題", false);
+    .catch(e=>{
+      showToast('❌ getPdfList API 發生問題',false);
     });
 }
 
 /*****************************************************
- * 6. 簽名畫布
+ * 簽名畫布
 *****************************************************/
 function initSignatureCanvas() {
-  const canvas = signature;
-  const ctx = canvas.getContext("2d");
-  let drawing = false;
-  let lastX = 0, lastY = 0;
+  const c = signature;
+  const ctx = c.getContext('2d');
+  let drawing=false, lastX=0,lastY=0;
 
   function resizeCanvas() {
-    const dpr = window.devicePixelRatio || 1;
-    const width = canvas.offsetWidth;
-    // 手機 => 0.55, 電腦 => 0.33
-    let ratio = window.innerWidth < 768 ? 0.55 : 0.33;
-    const height = Math.floor(width * ratio);
+    const dpr=window.devicePixelRatio||1;
+    const w=c.offsetWidth;
+    let ratio=window.innerWidth<768?0.55:0.33;
+    const h=Math.floor(w*ratio);
 
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.height = height + "px";
-    canvas.style.width = width + "px";
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.scale(dpr, dpr);
+    c.width=w*dpr;
+    c.height=h*dpr;
+    c.style.height=h+'px';
+    c.style.width=w+'px';
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(dpr,dpr);
   }
 
   resizeCanvas();
-  window.addEventListener("resize", resizeCanvas);
+  window.addEventListener('resize',resizeCanvas);
 
-  function getOffset(e) {
-    const rect = canvas.getBoundingClientRect();
-    if (e.touches?.[0]) {
-      return [ e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top ];
+  function getOffset(e){
+    const rect=c.getBoundingClientRect();
+    if(e.touches?.[0]) {
+      return [e.touches[0].clientX-rect.left,e.touches[0].clientY-rect.top];
     } else {
-      return [ e.offsetX, e.offsetY ];
+      return [e.offsetX,e.offsetY];
     }
   }
-  function startDraw(e) {
-    drawing = true;
-    const [x, y] = getOffset(e);
+  function startDraw(e){
+    drawing=true;
+    let [x,y]=getOffset(e);
     ctx.beginPath();
-    ctx.moveTo(x, y);
-    [lastX, lastY] = [x, y];
+    ctx.moveTo(x,y);
+    [lastX,lastY]=[x,y];
   }
-  function draw(e) {
-    if (!drawing) return;
-    const [x, y] = getOffset(e);
-    ctx.lineTo(x, y);
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
+  function draw(e){
+    if(!drawing)return;
+    let [x,y]=getOffset(e);
+    ctx.lineTo(x,y);
+    ctx.strokeStyle='#000';
+    ctx.lineWidth=2;
+    ctx.lineCap='round';
     ctx.stroke();
-    [lastX, lastY] = [x, y];
+    [lastX,lastY]=[x,y];
   }
-  function endDraw() {
-    drawing = false;
-  }
-  canvas.addEventListener("mousedown", startDraw);
-  canvas.addEventListener("mousemove", draw);
-  canvas.addEventListener("mouseup", endDraw);
-  canvas.addEventListener("mouseleave", endDraw);
+  function endDraw(){drawing=false;}
 
-  canvas.addEventListener("touchstart", e => {
-    e.preventDefault();
-    startDraw(e);
-  }, { passive: false });
-  canvas.addEventListener("touchmove", e => {
-    e.preventDefault();
-    draw(e);
-  }, { passive: false });
-  canvas.addEventListener("touchend", endDraw);
+  c.addEventListener('mousedown',startDraw);
+  c.addEventListener('mousemove',draw);
+  c.addEventListener('mouseup',endDraw);
+  c.addEventListener('mouseleave',endDraw);
+
+  c.addEventListener('touchstart',ev=>{
+    ev.preventDefault();
+    startDraw(ev);
+ },{passive:false});
+  c.addEventListener('touchmove',ev=>{
+    ev.preventDefault();
+    draw(ev);
+ },{passive:false});
+  c.addEventListener('touchend',endDraw);
 }
 
 /*****************************************************
- * 7. 簽名 → 縮圖後送出
+ * 簽名→縮小後送出
 *****************************************************/
-function downscaleCanvas(originalCanvas, scale = 0.3) {
-  if (window.innerWidth > 768) {
-    scale = 0.6; // 桌機
-  }
-  const tmpCanvas = document.createElement("canvas");
-  const ctx2 = tmpCanvas.getContext("2d");
-  tmpCanvas.width = originalCanvas.width * scale;
-  tmpCanvas.height = originalCanvas.height * scale;
-  ctx2.drawImage(originalCanvas, 0, 0, tmpCanvas.width, tmpCanvas.height);
-  return tmpCanvas.toDataURL("image/png");
+function downscaleCanvas(originalCanvas, scale=0.3){
+  if(window.innerWidth>768) scale=0.6; // 電腦
+  const tmp=document.createElement('canvas');
+  const cx=tmp.getContext('2d');
+  tmp.width=originalCanvas.width*scale;
+  tmp.height=originalCanvas.height*scale;
+  cx.drawImage(originalCanvas,0,0,tmp.width,tmp.height);
+  return tmp.toDataURL('image/png');
 }
 
-function clearPad() {
-  const c = signature;
-  const context = c.getContext("2d");
-  context.clearRect(0, 0, c.width, c.height);
+function clearPad(){
+  let cx=signature.getContext('2d');
+  cx.clearRect(0,0,signature.width,signature.height);
 }
 
-function submitSignature() {
-  if (isSubmitting) return;
+function submitSignature(){
+  if(isSubmitting)return;
   toggleSubmitLoading(true);
+  let dataUrl=downscaleCanvas(signature);
 
-  const c = signature;
-  const dataUrl = downscaleCanvas(c);
-
-  fetch(`${api}/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      action: "generateSignedPdf",
+  fetch(api+'/', {
+    method:'POST',
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({
+      action:'generateSignedPdf',
       dataUrl,
       folderId,
-      fileList: JSON.stringify(currentFileList)
+      fileList:JSON.stringify(currentFileList)
     })
   })
-    .then(res => res.json())
-    .then(data => {
+    .then(r=>r.json())
+    .then(data=>{
       toggleSubmitLoading(false);
-      if (data.success) {
-        result.textContent = "✅ PDF 產出成功！";
-        showToast("✅ PDF 產出成功！");
-
+      if(data.success){
+        result.textContent='✅ PDF 產出成功！';
+        showToast('✅ PDF 產出成功！');
         loadFileList();
-
-        // TODO: 後端 setSharing(ANYONE_WITH_LINK, VIEW) => data.url
-        // 直接內嵌 pdf
-        pdfPreviewFrame.src = data.url; 
-        pdfPreviewWrapper.classList.remove('hidden');
       } else {
-        result.textContent = data.message;
-        showToast(data.message, false);
+        result.textContent=data.message;
+        showToast(data.message,false);
       }
     })
-    .catch(() => {
+    .catch(e=>{
       toggleSubmitLoading(false);
-      result.textContent = "❌ 發生錯誤";
-      showToast("❌ 發送錯誤，請稍後再試", false);
+      result.textContent='❌ 發生錯誤';
+      showToast('❌ 發送錯誤，請稍後再試',false);
     });
 }
 
 /*****************************************************
- * 8. 預覽 PDF
+ * 登出
 *****************************************************/
-function previewPdf() {
-  // 只需要這個如果要另開視窗
-  // window.open(pdfPreviewFrame.src, '_blank')
-}
-
-/*****************************************************
- * 9. 登出
-*****************************************************/
-function logout() {
+function logout(){
   location.reload();
 }
 
 /*****************************************************
- * 10. 送出簽名時顯示 LOADING
+ * 送出時 Loading
 *****************************************************/
-function toggleSubmitLoading(loading) {
-  const btn = document.getElementById("submitBtn");
-  if (!btn) return;
-
-  if (loading) {
-    isSubmitting = true;
-    btn.disabled = true;
-    btn.textContent = "處理中...";
-    btn.classList.remove("hover:bg-indigo-500");
-    btn.classList.add("bg-gray-400");
+function toggleSubmitLoading(isLoad){
+  let btn=document.getElementById('submitBtn');
+  if(!btn)return;
+  if(isLoad){
+    isSubmitting=true;
+    btn.disabled=true;
+    btn.textContent='處理中...';
+    btn.classList.remove('hover:bg-indigo-500');
+    btn.classList.add('bg-gray-400');
   } else {
-    isSubmitting = false;
-    btn.disabled = false;
-    btn.textContent = "送出簽名";
-    btn.classList.remove("bg-gray-400");
-    btn.classList.add("bg-indigo-600", "hover:bg-indigo-500");
+    isSubmitting=false;
+    btn.disabled=false;
+    btn.textContent='送出簽名';
+    btn.classList.remove('bg-gray-400');
+    btn.classList.add('bg-indigo-600','hover:bg-indigo-500');
   }
 }
 </script>
