@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>📄 數資中心資料確認系統</title>
+  <title>📄 數位中心資料確認系統</title>
   
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -73,10 +73,10 @@
   <div id="toastContainer" class="fixed top-4 right-4 space-y-2 z-50"></div>
 
   <div class="glass w-full max-w-2xl p-8 rounded-2xl space-y-6">
-    <!-- 標頭 -->
+    <!-- 標頭 (加了 whitespace-nowrap 防止換行) -->
     <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-4">
-      <h1 class="text-3xl font-bold drop-shadow">
-        📄 數資中心資料確認系統
+      <h1 class="text-3xl font-bold drop-shadow whitespace-nowrap">
+        📄 數位中心資料確認系統
       </h1>
     </div>
 
@@ -204,7 +204,7 @@
  * 全域變數、API URL
 *****************************************************/
 let isSubmitting = false;
-const api = "https://aged-lake-0db4.chiachun12171217.workers.dev"; // ★ 您的 Worker URL
+const api = "https://aged-lake-0db4.chiachun12171217.workers.dev"; // ★ 你的 Worker URL
 let folderId = "", currentFileList = [];
 
 /*****************************************************
@@ -263,7 +263,7 @@ function login(){
 
           folderId = data.folderId;
           loadFileList();           // 進入主畫面後立即取得檔案清單
-          setTimeout(initSignatureCanvas, 150); 
+          setTimeout(initSignatureCanvas, 150);
           showToast('✅ 登入成功！');
         }
       } else {
