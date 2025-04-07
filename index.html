@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>數資中心資料確認系統</title>
+  <title>📄 數資中心資料確認系統</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC&display=swap" rel="stylesheet">
   <style>
@@ -47,9 +47,24 @@
     #fileList li:hover {
       background: rgba(255, 255, 255, 0.95);
     }
+
+    /* Toast 動畫 - 可微調 */
+    .toast {
+      transition: transform 0.3s, opacity 0.3s;
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    .toast-show {
+      transform: translateX(0);
+      opacity: 1;
+    }
   </style>
 </head>
 <body class="flex items-center justify-center p-6">
+
+  <!-- Toast Container (提示訊息) -->
+  <div id="toastContainer" class="fixed top-4 right-4 space-y-2 z-50"></div>
+
   <div class="glass w-full max-w-2xl p-8 rounded-2xl space-y-6">
     <h1 class="text-3xl font-bold text-center text-indigo-700 drop-shadow">
       📄 數資中心資料確認系統
@@ -69,6 +84,7 @@
         class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
       />
       <button
+        id="loginBtn"
         onclick="login()"
         class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-500 transition"
       >
@@ -143,6 +159,7 @@
             清除
           </button>
           <button
+            id="submitBtn"
             onclick="submitSignature()"
             class="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-500 transition"
           >
@@ -154,249 +171,317 @@
     </div>
   </div>
 
-  <script>
-    const api = "https://aged-lake-0db4.chiachun12171217.workers.dev";
-    let userToken = "", folderId = "", currentFileList = [];
+<script>
+/*****************************************************
+ * 全域變數
+*****************************************************/
+const api = "https://aged-lake-0db4.chiachun12171217.workers.dev";
+let userToken = "", folderId = "", currentFileList = [];
+let isSubmitting = false; // 防重複送出
 
-    /***************************************
-     * 簽名畫布初始化
-     ***************************************/
-    function initSignatureCanvas() {
-      const canvas = document.getElementById("signature");
-      const ctx = canvas.getContext("2d");
-      let drawing = false;
-      let lastX = 0,
-        lastY = 0;
+/*****************************************************
+ * Toast 功能 (成功/失敗訊息提示)
+*****************************************************/
+function showToast(msg, isSuccess = true) {
+  const container = document.getElementById('toastContainer');
+  const toastDiv = document.createElement('div');
+  toastDiv.className = `
+    toast px-4 py-2 rounded shadow-lg mb-2
+    ${isSuccess ? 'bg-green-500' : 'bg-red-500'} text-white
+  `;
+  toastDiv.textContent = msg;
+  container.appendChild(toastDiv);
 
-      function resizeCanvas() {
-        const dpr = window.devicePixelRatio || 1;
-        const width = canvas.offsetWidth;
-        // 若螢幕 < 768，視為手機 => 高度 0.55
-        // 電腦 => 高度 0.33
-        let ratio = window.innerWidth < 768 ? 0.55 : 0.33;
-        const height = Math.floor(width * ratio);
+  // 進場
+  requestAnimationFrame(() => {
+    toastDiv.classList.add('toast-show');
+  });
 
-        canvas.width = width * dpr;
-        canvas.height = height * dpr;
-        canvas.style.height = height + "px";
-        canvas.style.width = width + "px";
-
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.scale(dpr, dpr);
+  // 2 秒後自動關閉
+  setTimeout(() => {
+    // 離場
+    toastDiv.classList.remove('toast-show');
+    setTimeout(() => {
+      if (toastDiv.parentNode) {
+        toastDiv.parentNode.removeChild(toastDiv);
       }
+    }, 300);
+  }, 2000);
+}
 
-      resizeCanvas();
-      window.addEventListener("resize", resizeCanvas);
+/*****************************************************
+ * 登入
+*****************************************************/
+function login() {
+  const idValue = document.getElementById('empId').value.trim();
+  const pwValue = document.getElementById('empPw').value.trim();
 
-      function getOffset(e) {
-        const rect = canvas.getBoundingClientRect();
-        if (e.touches?.[0]) {
-          return [
-            e.touches[0].clientX - rect.left,
-            e.touches[0].clientY - rect.top,
-          ];
+  fetch(api + "/", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      action: "login",
+      employeeId: idValue,
+      password: pwValue
+    })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        if (data.needPasswordChange) {
+          // 首次登入
+          loginView.classList.add("hidden");
+          changePwView.classList.remove("hidden");
         } else {
-          return [e.offsetX, e.offsetY];
+          // 一般登入
+          loginView.classList.add("hidden");
+          mainView.classList.remove("hidden");
+
+          dept.textContent = data.department || "";
+          title.textContent = data.title || "";
+          empName.textContent = data.name || "";
+
+          userToken = data.token;
+          folderId = data.folderId;
+          loadFileList();
+
+          // 延遲 150ms 初始化簽名
+          setTimeout(initSignatureCanvas, 150);
+
+          showToast("✅ 登入成功！");
         }
+      } else {
+        showToast(data.message, false);
+        loginMsg.textContent = data.message;
       }
-      function startDraw(e) {
-        drawing = true;
-        const [x, y] = getOffset(e);
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        [lastX, lastY] = [x, y];
+    })
+    .catch(err => {
+      showToast("❌ login API 發生問題", false);
+    });
+}
+
+/*****************************************************
+ * 首次登入 → 改密碼
+*****************************************************/
+function changePassword() {
+  const idValue = document.getElementById('empId').value.trim();
+  const oldPwValue = document.getElementById('oldPw').value.trim();
+  const newPwValue = document.getElementById('newPw').value.trim();
+
+  fetch(api + "/", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      action: "changePassword",
+      employeeId: idValue,
+      oldPassword: oldPwValue,
+      newPassword: newPwValue
+    })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        alert("密碼變更成功，請重新登入");
+        location.reload();
+      } else {
+        pwMsg.textContent = data.message;
+        showToast(data.message, false);
       }
-      function draw(e) {
-        if (!drawing) return;
-        const [x, y] = getOffset(e);
-        ctx.lineTo(x, y);
-        ctx.strokeStyle = "#000";
-        ctx.lineWidth = 2;
-        ctx.lineCap = "round";
-        ctx.stroke();
-        [lastX, lastY] = [x, y];
-      }
-      function endDraw() {
-        drawing = false;
-      }
+    })
+    .catch(err => {
+      showToast("❌ changePassword API 發生問題", false);
+    });
+}
 
-      canvas.addEventListener("mousedown", startDraw);
-      canvas.addEventListener("mousemove", draw);
-      canvas.addEventListener("mouseup", endDraw);
-      canvas.addEventListener("mouseleave", endDraw);
-
-      canvas.addEventListener(
-        "touchstart",
-        (e) => {
-          e.preventDefault();
-          startDraw(e);
-        },
-        { passive: false }
-      );
-
-      canvas.addEventListener(
-        "touchmove",
-        (e) => {
-          e.preventDefault();
-          draw(e);
-        },
-        { passive: false }
-      );
-
-      canvas.addEventListener("touchend", endDraw);
-    }
-
-    /***************************************
-     * downscaleCanvas → 縮小圖片再送出
-     ***************************************/
-    function downscaleCanvas(originalCanvas, scale = 0.3) {
-      // 如果是桌機 => 0.6 (你可以改成 0.5)
-      if (window.innerWidth > 768) {
-        scale = 0.6;
-      }
-      const tmpCanvas = document.createElement("canvas");
-      const ctx2 = tmpCanvas.getContext("2d");
-      tmpCanvas.width = originalCanvas.width * scale;
-      tmpCanvas.height = originalCanvas.height * scale;
-      ctx2.drawImage(
-        originalCanvas,
-        0,
-        0,
-        tmpCanvas.width,
-        tmpCanvas.height
-      );
-      return tmpCanvas.toDataURL("image/png");
-    }
-
-    /***************************************
-     * 登入 / 改密碼 / 清單 / 送出邏輯
-     ***************************************/
-    function login() {
-      const id = document.getElementById("empId").value.trim();
-      const pw = document.getElementById("empPw").value.trim();
-      fetch(api + "/", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          action: "login",
-          employeeId: id,
-          password: pw,
-        }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            if (data.needPasswordChange) {
-              loginView.classList.add("hidden");
-              changePwView.classList.remove("hidden");
-            } else {
-              loginView.classList.add("hidden");
-              mainView.classList.remove("hidden");
-
-              dept.textContent = data.department || "";
-              title.textContent = data.title || "";   // 顯示職稱
-              empName.textContent = data.name || "";  // 顯示姓名
-
-              userToken = data.token;
-              folderId = data.folderId;
-              loadFileList();
-
-              // 初始化簽名畫布
-              setTimeout(initSignatureCanvas, 150);
-            }
-          } else {
-            loginMsg.textContent = data.message;
-          }
-        })
-        .catch((err) => {
-          loginMsg.textContent = "❌ 錯誤：「login」API 發生問題";
+/*****************************************************
+ * 載入 PDF 清單
+*****************************************************/
+function loadFileList() {
+  fetch(`${api}/?action=getPdfList&folderId=${folderId}`)
+    .then(res => res.json())
+    .then(data => {
+      currentFileList = data.files || [];
+      const list = fileList;
+      list.innerHTML = "";
+      if (currentFileList.length === 0) {
+        const li = document.createElement("li");
+        li.textContent = "尚無 PDF 檔案";
+        li.className = "text-gray-500";
+        list.appendChild(li);
+      } else {
+        currentFileList.forEach(file => {
+          const li = document.createElement("li");
+          li.textContent = `${file.name}（${file.date}）`;
+          list.appendChild(li);
         });
-    }
+      }
+    })
+    .catch(err => {
+      showToast("❌ getPdfList API 發生問題", false);
+    });
+}
 
-    function changePassword() {
-      const id = document.getElementById("empId").value.trim();
-      const oldPw = document.getElementById("oldPw").value.trim();
-      const newPw = document.getElementById("newPw").value.trim();
-      fetch(`${api}/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          action: "changePassword",
-          employeeId: id,
-          oldPassword: oldPw,
-          newPassword: newPw,
-        }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            alert("密碼變更成功，請重新登入");
-            location.reload();
-          } else {
-            pwMsg.textContent = data.message;
-          }
-        });
-    }
+/*****************************************************
+ * 簽名畫布
+*****************************************************/
+function initSignatureCanvas() {
+  const canvas = document.getElementById("signature");
+  const ctx = canvas.getContext("2d");
+  let drawing = false;
+  let lastX = 0, lastY = 0;
 
-    function loadFileList() {
-      fetch(`${api}/?action=getPdfList&folderId=${folderId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          currentFileList = data.files;
-          const list = document.getElementById("fileList");
-          list.innerHTML = "";
-          data.files.forEach((file) => {
-            const li = document.createElement("li");
-            li.textContent = `${file.name}（${file.date}）`;
-            list.appendChild(li);
-          });
-        });
-    }
+  function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const width = canvas.offsetWidth;
+    // 手機 => 0.55, 電腦 => 0.33
+    let ratio = window.innerWidth < 768 ? 0.55 : 0.33;
+    const height = Math.floor(width * ratio);
 
-    function clearPad() {
-      const c = document.getElementById("signature");
-      const context = c.getContext("2d");
-      context.clearRect(0, 0, c.width, c.height);
-    }
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.height = height + "px";
+    canvas.style.width = width + "px";
 
-    function submitSignature() {
-      const c = document.getElementById("signature");
-      // 依裝置不同 → 手機 0.3、桌機 0.6
-      const dataUrl = downscaleCanvas(c);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+  }
 
-      fetch(`${api}/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          action: "generateSignedPdf",
-          dataUrl,
-          folderId,
-          fileList: JSON.stringify(currentFileList),
-        }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            result.textContent = "✅ PDF 產出成功！";
-            loadFileList();
-          } else {
-            result.textContent = data.message;
-          }
-        })
-        .catch(() => {
-          result.textContent = "❌ 發送錯誤，請稍後再試";
-        });
-    }
+  resizeCanvas();
+  window.addEventListener("resize", resizeCanvas);
 
-    // 登出功能
-    function logout() {
-      location.reload();
+  function getOffset(e) {
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches?.[0]) {
+      return [
+        e.touches[0].clientX - rect.left,
+        e.touches[0].clientY - rect.top
+      ];
+    } else {
+      return [e.offsetX, e.offsetY];
     }
+  }
+  function startDraw(e) {
+    drawing = true;
+    const [x, y] = getOffset(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    [lastX, lastY] = [x, y];
+  }
+  function draw(e) {
+    if (!drawing) return;
+    const [x, y] = getOffset(e);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.stroke();
+    [lastX, lastY] = [x, y];
+  }
+  function endDraw() {
+    drawing = false;
+  }
+  canvas.addEventListener("mousedown", startDraw);
+  canvas.addEventListener("mousemove", draw);
+  canvas.addEventListener("mouseup", endDraw);
+  canvas.addEventListener("mouseleave", endDraw);
 
-    // 若想預覽 PDF 可以這樣做，但檔案需分享設定
-    function previewPdf() {
-      // window.open(data.url, '_blank');
-    }
-  </script>
+  canvas.addEventListener("touchstart", e => {
+    e.preventDefault();
+    startDraw(e);
+  }, { passive: false });
+  canvas.addEventListener("touchmove", e => {
+    e.preventDefault();
+    draw(e);
+  }, { passive: false });
+  canvas.addEventListener("touchend", endDraw);
+}
+
+/*****************************************************
+ * 簽名 → 縮圖後送出
+*****************************************************/
+function downscaleCanvas(originalCanvas, scale = 0.3) {
+  // 電腦 0.6
+  if (window.innerWidth > 768) {
+    scale = 0.6;
+  }
+  const tmpCanvas = document.createElement("canvas");
+  const ctx2 = tmpCanvas.getContext("2d");
+  tmpCanvas.width = originalCanvas.width * scale;
+  tmpCanvas.height = originalCanvas.height * scale;
+  ctx2.drawImage(originalCanvas, 0, 0, tmpCanvas.width, tmpCanvas.height);
+  return tmpCanvas.toDataURL("image/png");
+}
+
+function clearPad() {
+  const c = signature;
+  const context = c.getContext("2d");
+  context.clearRect(0, 0, c.width, c.height);
+}
+
+function submitSignature() {
+  if (isSubmitting) return; // 避免重複送出
+  toggleSubmitLoading(true);
+
+  const c = signature;
+  const dataUrl = downscaleCanvas(c);
+
+  fetch(`${api}/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      action: "generateSignedPdf",
+      dataUrl,
+      folderId,
+      fileList: JSON.stringify(currentFileList),
+    }),
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      toggleSubmitLoading(false);
+      if (data.success) {
+        result.textContent = "✅ PDF 產出成功！";
+        showToast("✅ PDF 產出成功！");
+        loadFileList();
+      } else {
+        result.textContent = data.message;
+        showToast(data.message, false);
+      }
+    })
+    .catch(() => {
+      toggleSubmitLoading(false);
+      result.textContent = "❌ 發生錯誤";
+      showToast("❌ 發送錯誤，請稍後再試", false);
+    });
+}
+
+/*****************************************************
+ * 登出
+*****************************************************/
+function logout() {
+  location.reload();
+}
+
+/*****************************************************
+ * 送出簽名時顯示 LOADING
+*****************************************************/
+function toggleSubmitLoading(loading) {
+  const btn = document.getElementById("submitBtn");
+  if (!btn) return;
+
+  if (loading) {
+    isSubmitting = true;
+    btn.disabled = true;
+    btn.textContent = "處理中...";
+    btn.classList.remove("hover:bg-indigo-500");
+    btn.classList.add("bg-gray-400");
+  } else {
+    isSubmitting = false;
+    btn.disabled = false;
+    btn.textContent = "送出簽名";
+    btn.classList.remove("bg-gray-400");
+    btn.classList.add("bg-indigo-600", "hover:bg-indigo-500");
+  }
+}
+</script>
 </body>
 </html>
