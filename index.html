@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-Hant" class="dark"> <!-- 預設暗色，可預設空白表示淺色 -->
+<html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>📄 數資中心資料確認系統</title>
-  
+
   <!-- Tailwind: 開啟 darkMode: class -->
   <script>
     tailwind.config = {
@@ -12,16 +12,15 @@
     }
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
-
+  
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC&display=swap" rel="stylesheet">
-
   <style>
     html, body {
       font-family: 'Noto Sans TC', sans-serif;
       background: linear-gradient(135deg, #e0f2fe, #fef9c3);
       min-height: 100vh;
+      /* 預設不加 class="dark" => 預設亮色 */
     }
-    /* 若進階想要暗色背景，也可在 .dark 下直接覆蓋 */
     .dark body {
       background: #1e293b; /* Slate-800 */
     }
@@ -36,8 +35,7 @@
     }
     @keyframes fadeInUp {
       to {
-        opacity: 1;
-        transform: translateY(0);
+        opacity: 1; transform: translateY(0);
       }
     }
     #signature {
@@ -60,8 +58,6 @@
     #fileList li:hover {
       background: rgba(255, 255, 255, 0.95);
     }
-
-    /* Toast 動畫 - 可微調 */
     .toast {
       transition: transform 0.3s, opacity 0.3s;
       transform: translateX(100%);
@@ -73,9 +69,10 @@
     }
   </style>
 </head>
+
 <body class="dark:bg-slate-800 dark:text-gray-100 flex items-center justify-center p-6">
 
-  <!-- Toast Container (提示訊息) -->
+  <!-- Toast 容器 -->
   <div id="toastContainer" class="fixed top-4 right-4 space-y-2 z-50"></div>
 
   <div class="glass w-full max-w-2xl p-8 rounded-2xl space-y-6 dark:bg-white/10">
@@ -83,27 +80,22 @@
       <h1 class="text-3xl font-bold drop-shadow">
         📄 數資中心資料確認系統
       </h1>
-      <!-- 深色模式切換按鈕 -->
-      <button onclick="toggleDarkMode()" class="bg-gray-300 dark:bg-slate-600 text-sm px-3 py-1 rounded">
+      <!-- 深色模式切換按鈕 (預設亮色 => 按一下進入深色 => 按鈕文字改成「切換亮色」) -->
+      <button id="toggleDarkBtn"
+        onclick="toggleDarkMode()"
+        class="bg-gray-300 dark:bg-slate-600 text-sm px-3 py-1 rounded"
+      >
         切換深色
       </button>
     </div>
 
     <!-- 登入畫面 -->
     <div id="loginView" class="space-y-4">
-      <input
-        id="empId"
-        placeholder="員工編號"
-        class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:text-black"
-      />
-      <input
-        id="empPw"
-        type="password"
-        placeholder="密碼"
-        class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:text-black"
-      />
-      <button
-        id="loginBtn"
+      <input id="empId" placeholder="員工編號"
+        class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:text-black"/>
+      <input id="empPw" type="password" placeholder="密碼"
+        class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:text-black"/>
+      <button id="loginBtn"
         onclick="login()"
         class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-500 transition"
       >
@@ -114,22 +106,12 @@
 
     <!-- 首次登入變更密碼 -->
     <div id="changePwView" class="hidden space-y-4">
-      <input
-        id="oldPw"
-        type="password"
-        placeholder="舊密碼"
-        class="w-full border border-gray-300 p-3 rounded-lg dark:text-black"
-      />
-      <input
-        id="newPw"
-        type="password"
-        placeholder="新密碼"
-        class="w-full border border-gray-300 p-3 rounded-lg dark:text-black"
-      />
-      <button
-        onclick="changePassword()"
-        class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-500 transition"
-      >
+      <input id="oldPw" type="password" placeholder="舊密碼"
+        class="w-full border border-gray-300 p-3 rounded-lg dark:text-black"/>
+      <input id="newPw" type="password" placeholder="新密碼"
+        class="w-full border border-gray-300 p-3 rounded-lg dark:text-black"/>
+      <button onclick="changePassword()"
+        class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-500 transition">
         變更密碼
       </button>
       <p id="pwMsg" class="text-center text-red-600 text-sm"></p>
@@ -137,8 +119,8 @@
 
     <!-- 主畫面 -->
     <div id="mainView" class="hidden space-y-6">
+      <!-- 頭部：部門/職稱/姓名 + 登出按鈕 -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-        <!-- 同一行顯示：部門、職稱、姓名 -->
         <div class="flex flex-wrap items-center gap-4">
           <p class="font-semibold">
             部門：<span id="dept" class="text-blue-600 dark:text-blue-400"></span>
@@ -150,10 +132,8 @@
             姓名：<span id="empName" class="text-green-600 dark:text-green-400"></span>
           </p>
         </div>
-        <button
-          onclick="logout()"
-          class="bg-red-500 text-white px-4 py-1 rounded hover:bg-red-400 transition"
-        >
+        <button onclick="logout()"
+          class="bg-red-500 text-white px-4 py-1 rounded hover:bg-red-400 transition">
           登出
         </button>
       </div>
@@ -166,7 +146,7 @@
         </ul>
       </div>
 
-      <!-- 簽名區 -->
+      <!-- 簽名區 + 預覽 PDF -->
       <div class="bg-white bg-opacity-90 p-4 rounded-lg shadow dark:bg-slate-700 dark:bg-opacity-40 relative">
         <h2 class="text-lg font-bold mb-2">✍️ 簽名區</h2>
         <canvas id="signature"></canvas>
@@ -187,37 +167,46 @@
         </div>
         <p id="result" class="mt-4 text-center text-green-700 dark:text-green-300 text-sm font-medium"></p>
 
-        <!-- 預覽 PDF 按鈕（選擇性） -->
-        <button
-          onclick="previewPdf()"
-          id="previewBtn"
-          class="mt-2 hidden bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-500 transition"
-        >
-          預覽 PDF
-        </button>
+        <!-- PDF 預覽 區塊：隱藏，等成功產出後才顯示 -->
+        <div id="pdfPreviewWrapper" class="mt-4 hidden">
+          <h3 class="text-base font-semibold mb-2">預覽簽核 PDF</h3>
+          <iframe id="pdfPreviewFrame"
+            class="w-full h-96 border border-gray-300"
+            src=""
+          ></iframe>
+        </div>
       </div>
     </div>
   </div>
 
 <script>
-/*****************************************************
- * Config
-*****************************************************/
-const api = "https://aged-lake-0db4.chiachun12171217.workers.dev";
-let userToken = "", folderId = "", currentFileList = [];
-let lastPdfUrl = ""; // 用於預覽 PDF
-let isSubmitting = false; // 防止重複送出
+const api = "https://aged-lake-0db4.chiachun12171217.workers.dev"; // 後端 Worker
+let userToken = "",
+  folderId = "",
+  currentFileList = [],
+  lastPdfUrl = "",
+  isDark = false,
+  isSubmitting = false;
 
 /*****************************************************
- * Dark Mode 切換
+ * 1. 深色模式切換
 *****************************************************/
 function toggleDarkMode() {
-  // 切換 <html> class="dark"
-  document.documentElement.classList.toggle('dark');
+  const htmlEl = document.documentElement;
+  isDark = !isDark;
+  if (isDark) {
+    // 切成 dark
+    htmlEl.classList.add('dark');
+    toggleDarkBtn.textContent = "切換亮色";
+  } else {
+    // 切成 light
+    htmlEl.classList.remove('dark');
+    toggleDarkBtn.textContent = "切換深色";
+  }
 }
 
 /*****************************************************
- * Toast 功能
+ * 2. Toast 提示
 *****************************************************/
 function showToast(msg, isSuccess = true) {
   const container = document.getElementById('toastContainer');
@@ -247,11 +236,11 @@ function showToast(msg, isSuccess = true) {
 }
 
 /*****************************************************
- * 登入
+ * 3. 登入
 *****************************************************/
 function login() {
-  const idValue = document.getElementById('empId').value.trim();
-  const pwValue = document.getElementById('empPw').value.trim();
+  const idValue = empId.value.trim();
+  const pwValue = empPw.value.trim();
 
   fetch(api + "/", {
     method: "POST",
@@ -269,7 +258,6 @@ function login() {
           loginView.classList.add("hidden");
           changePwView.classList.remove("hidden");
         } else {
-          // 一般登入
           loginView.classList.add("hidden");
           mainView.classList.remove("hidden");
 
@@ -277,11 +265,10 @@ function login() {
           title.textContent = data.title || "";
           empName.textContent = data.name || "";
 
-          userToken = data.token;
           folderId = data.folderId;
           loadFileList();
-
           setTimeout(initSignatureCanvas, 150);
+
           showToast("✅ 登入成功！");
         }
       } else {
@@ -289,20 +276,20 @@ function login() {
         loginMsg.textContent = data.message;
       }
     })
-    .catch(err => {
+    .catch(() => {
       showToast("❌ login API 發生問題", false);
     });
 }
 
 /*****************************************************
- * 首次登入 → 改密碼
+ * 4. 首次登入 → 改密碼
 *****************************************************/
 function changePassword() {
   const idValue = empId.value.trim();
   const oldPwValue = oldPw.value.trim();
   const newPwValue = newPw.value.trim();
 
-  fetch(`${api}/`, {
+  fetch(api + "/", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -328,7 +315,7 @@ function changePassword() {
 }
 
 /*****************************************************
- * 載入 PDF 清單
+ * 5. 載入 PDF 清單
 *****************************************************/
 function loadFileList() {
   fetch(`${api}/?action=getPdfList&folderId=${folderId}`)
@@ -355,7 +342,7 @@ function loadFileList() {
 }
 
 /*****************************************************
- * 簽名畫布
+ * 6. 簽名畫布
 *****************************************************/
 function initSignatureCanvas() {
   const canvas = signature;
@@ -374,7 +361,6 @@ function initSignatureCanvas() {
     canvas.height = height * dpr;
     canvas.style.height = height + "px";
     canvas.style.width = width + "px";
-
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
   }
@@ -427,12 +413,11 @@ function initSignatureCanvas() {
 }
 
 /*****************************************************
- * 簽名 → 縮圖後送出
+ * 7. 簽名 → 縮圖後送出
 *****************************************************/
 function downscaleCanvas(originalCanvas, scale = 0.3) {
-  // 桌機 => 0.6
   if (window.innerWidth > 768) {
-    scale = 0.6;
+    scale = 0.6; // 桌機
   }
   const tmpCanvas = document.createElement("canvas");
   const ctx2 = tmpCanvas.getContext("2d");
@@ -471,12 +456,13 @@ function submitSignature() {
       if (data.success) {
         result.textContent = "✅ PDF 產出成功！";
         showToast("✅ PDF 產出成功！");
+
         loadFileList();
 
-        // 若要預覽 => 設 lastPdfUrl = data.url
-        // 同時後端要 setSharing(ANYONE_WITH_LINK)
-        // previewBtn.classList.remove('hidden'); 
-        // lastPdfUrl = data.url;
+        // TODO: 後端 setSharing(ANYONE_WITH_LINK, VIEW) => data.url
+        // 直接內嵌 pdf
+        pdfPreviewFrame.src = data.url; 
+        pdfPreviewWrapper.classList.remove('hidden');
       } else {
         result.textContent = data.message;
         showToast(data.message, false);
@@ -490,26 +476,22 @@ function submitSignature() {
 }
 
 /*****************************************************
- * PDF 預覽
+ * 8. 預覽 PDF
 *****************************************************/
 function previewPdf() {
-  // 前提後端要 setSharing
-  if (!lastPdfUrl) {
-    showToast("目前沒有可預覽的 PDF", false);
-    return;
-  }
-  window.open(lastPdfUrl, '_blank');
+  // 只需要這個如果要另開視窗
+  // window.open(pdfPreviewFrame.src, '_blank')
 }
 
 /*****************************************************
- * 登出
+ * 9. 登出
 *****************************************************/
 function logout() {
   location.reload();
 }
 
 /*****************************************************
- * 送出簽名時顯示 LOADING
+ * 10. 送出簽名時顯示 LOADING
 *****************************************************/
 function toggleSubmitLoading(loading) {
   const btn = document.getElementById("submitBtn");
@@ -530,5 +512,6 @@ function toggleSubmitLoading(loading) {
   }
 }
 </script>
+
 </body>
 </html>
