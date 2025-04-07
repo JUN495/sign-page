@@ -73,7 +73,7 @@
   <div id="toastContainer" class="fixed top-4 right-4 space-y-2 z-50"></div>
 
   <div class="glass w-full max-w-2xl p-8 rounded-2xl space-y-6">
-    <!-- 標頭 (加了 whitespace-nowrap 防止換行) -->
+    <!-- 標頭 (whitespace-nowrap 防止換行) -->
     <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-4">
       <h1 class="text-3xl font-bold drop-shadow whitespace-nowrap">
         📄 數位中心資料確認系統
@@ -128,20 +128,16 @@
 
     <!-- 主畫面 -->
     <div id="mainView" class="hidden space-y-6">
-      <!-- 頭部：部門、職稱、姓名 + 登出按鈕 -->
+      <!-- 基本資料 + 登出按鈕 -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
         <div class="flex flex-wrap items-center gap-4">
           <p class="font-semibold">
-            部門：
-            <span id="dept" class="text-blue-700"></span>
+            姓名：
+            <span id="empName" class="text-green-700"></span>
           </p>
           <p class="font-semibold">
             職稱：
             <span id="title" class="text-pink-700"></span>
-          </p>
-          <p class="font-semibold">
-            姓名：
-            <span id="empName" class="text-green-700"></span>
           </p>
         </div>
         <button
@@ -152,7 +148,23 @@
         </button>
       </div>
 
-      <!-- 檔案清單 + 分類按鈕 -->
+      <!-- 部門切換區塊 -->
+      <div id="deptSection" class="bg-white bg-opacity-90 p-4 rounded-lg shadow">
+        <!-- 提示文字：您有 n 個部門要簽核 -->
+        <p id="deptHint" class="text-sm text-gray-600 mb-2"></p>
+
+        <!-- 下拉選單 (若只有1個部門 => 隱藏) -->
+        <label for="deptSelect" class="block mb-1 text-sm font-semibold">請選擇要處理的部門</label>
+        <select id="deptSelect" class="border p-1 rounded mb-2 hidden"></select>
+
+        <!-- 顯示目前選擇的部門名稱 -->
+        <p>
+          您目前操作的部門：
+          <span id="deptName" class="font-bold text-blue-600"></span>
+        </p>
+      </div>
+
+      <!-- 檔案清單區 + 分類按鈕 -->
       <div class="bg-white bg-opacity-90 p-4 rounded-lg shadow relative">
         <h2 class="text-lg font-bold mb-2">📄 檔案清單</h2>
         <!-- 分類按鈕群 -->
@@ -201,11 +213,13 @@
 
 <script>
 /*****************************************************
- * 全域變數、API URL
+ * 全域變數
 *****************************************************/
 let isSubmitting = false;
-const api = "https://aged-lake-0db4.chiachun12171217.workers.dev"; // ★ 你的 Worker URL
-let folderId = "", currentFileList = [];
+const api = "https://aged-lake-0db4.chiachun12171217.workers.dev"; // ★ 請改成您的 Worker URL
+let departments = [], folderIds = [];
+let currentDeptIndex = 0; // 目前選擇的部門 index
+let currentFileList = [];
 
 /*****************************************************
  * Toast
@@ -238,42 +252,50 @@ function showToast(msg, success=true){
 function login(){
   const idValue = empId.value.trim();
   const pwValue = empPw.value.trim();
+
   fetch(api+'/', {
-    method:'POST',
-    headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
+    method: 'POST',
+    headers: {'Content-Type':'application/x-www-form-urlencoded'},
     body: new URLSearchParams({
       action:'login',
       employeeId:idValue,
       password:pwValue
     })
   })
-    .then(r=>r.json())
-    .then(data=>{
-      if(data.success){
-        if(data.needPasswordChange){
-          loginView.classList.add('hidden');
-          changePwView.classList.remove('hidden');
-        } else {
-          // 一般登入
-          loginView.classList.add('hidden');
-          mainView.classList.remove('hidden');
-          dept.textContent = data.department || '';
-          title.textContent = data.title || '';
-          empName.textContent = data.name || '';
-
-          folderId = data.folderId;
-          loadFileList();           // 進入主畫面後立即取得檔案清單
-          setTimeout(initSignatureCanvas, 150);
-          showToast('✅ 登入成功！');
-        }
+  .then(r=>r.json())
+  .then(data=>{
+    if(data.success){
+      if(data.needPasswordChange){
+        loginView.classList.add('hidden');
+        changePwView.classList.remove('hidden');
       } else {
-        showToast(data.message, false);
-        loginMsg.textContent = data.message;
+        // 一般登入成功
+        loginView.classList.add('hidden');
+        mainView.classList.remove('hidden');
+
+        empName.textContent = data.name || '';
+        title.textContent = data.title || '';
+
+        // 多部門、多folder
+        departments = data.departments || [];
+        folderIds = data.folderIds || [];
+
+        // 建立或隱藏部門切換選單
+        setupDepartmentSelector();
+        // 載入第一個部門檔案
+        loadFileList();
+        setTimeout(initSignatureCanvas, 150);
+
+        showToast('✅ 登入成功！');
       }
-    })
-    .catch(e=>{
-      showToast('❌ login API 發生問題', false);
-    });
+    } else {
+      showToast(data.message, false);
+      loginMsg.textContent = data.message;
+    }
+  })
+  .catch(e=>{
+    showToast('❌ login API 發生問題',false);
+  });
 }
 
 /*****************************************************
@@ -286,7 +308,7 @@ function changePassword(){
 
   fetch(api+'/', {
     method:'POST',
-    headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
     body: new URLSearchParams({
       action:'changePassword',
       employeeId:idValue,
@@ -294,38 +316,84 @@ function changePassword(){
       newPassword:newPwValue
     })
   })
-    .then(r=>r.json())
-    .then(data=>{
-      if(data.success){
-        alert('密碼變更成功，請重新登入');
-        location.reload();
-      } else {
-        pwMsg.textContent = data.message;
-        showToast(data.message, false);
-      }
-    })
-    .catch(e=>{
-      showToast('❌ changePassword API 發生問題', false);
-    });
+  .then(r=>r.json())
+  .then(data=>{
+    if(data.success){
+      alert('密碼變更成功，請重新登入');
+      location.reload();
+    } else {
+      pwMsg.textContent = data.message;
+      showToast(data.message,false);
+    }
+  })
+  .catch(e=>{
+    showToast('❌ changePassword API 發生問題',false);
+  });
 }
 
 /*****************************************************
- * 載入檔案清單 + 分類統計
+ * 部門選擇：若只有 1 個部門 => 顯示
+ *          若多個 => 下拉選單
+*****************************************************/
+function setupDepartmentSelector(){
+  const deptHint = document.getElementById('deptHint');
+  const deptSelect = document.getElementById('deptSelect');
+  const deptName = document.getElementById('deptName');
+
+  if(departments.length <= 1){
+    // 只有一個部門 => 直接顯示
+    deptHint.textContent = '您目前只有一個部門要處理';
+    deptSelect.classList.add('hidden');
+    deptName.textContent = departments[0] || '';
+    currentDeptIndex = 0;
+  } else {
+    // 多個部門 => 建立下拉
+    deptHint.textContent = `您目前有 ${departments.length} 個部門需要簽核：${departments.join('、')}`;
+    deptSelect.classList.remove('hidden');
+    deptSelect.innerHTML = '';
+
+    departments.forEach((d, idx) => {
+      const opt = document.createElement('option');
+      opt.value = idx;
+      opt.textContent = d;
+      deptSelect.appendChild(opt);
+    });
+    deptSelect.selectedIndex = 0;
+    currentDeptIndex = 0;
+    deptName.textContent = departments[0];
+
+    deptSelect.addEventListener('change', (e) => {
+      currentDeptIndex = parseInt(e.target.value,10);
+      deptName.textContent = departments[currentDeptIndex];
+      // 切換部門 → 重新載入
+      loadFileList();
+    });
+  }
+}
+
+/*****************************************************
+ * 載入檔案清單 + 統計 PDF/Word/Others
 *****************************************************/
 function loadFileList(){
-  fetch(`${api}/?action=getFileList&folderId=${folderId}`)
+  fileList.innerHTML = '載入中...';
+  if(currentDeptIndex < 0 || currentDeptIndex >= folderIds.length){
+    fileList.innerHTML = '(無資料夾ID)';
+    return;
+  }
+  const fid = folderIds[currentDeptIndex];
+
+  fetch(`${api}/?action=getFileList&folderId=${fid}`)
     .then(r=>r.json())
     .then(data=>{
       if(!data.success){
+        fileList.innerHTML = '(無法取得清單)';
         showToast(data.message || '❌ 無法取得檔案清單', false);
         return;
       }
       currentFileList = data.files || [];
 
-      // 統計 pdf / word / others
       let pdfCount = 0, wordCount = 0, othersCount = 0;
       currentFileList.forEach(f=>{
-        // 保險起見，extension 轉小寫
         const ext = (f.extension || '').toLowerCase();
         if(ext === 'pdf'){
           pdfCount++;
@@ -336,36 +404,30 @@ function loadFileList(){
         }
       });
 
-      // 以 innerHTML 顯示紅色 badge (若 > 0)
+      // 顯示紅色 badge
       pdfBtn.innerHTML = `PDF ${
         pdfCount > 0
         ? `<span class="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-1 inline-block">${pdfCount}</span>`
         : '(0)'
       }`;
-
       wordBtn.innerHTML = `Word ${
         wordCount > 0
         ? `<span class="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-1 inline-block">${wordCount}</span>`
         : '(0)'
       }`;
-
       othersBtn.innerHTML = `Others ${
         othersCount > 0
         ? `<span class="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-1 inline-block">${othersCount}</span>`
         : '(0)'
       }`;
 
-      // 預設顯示全部
       renderFileList('all');
     })
     .catch(e=>{
-      showToast('❌ getFileList API 發生問題', false);
+      showToast('❌ getFileList API 發生問題',false);
     });
 }
 
-/*****************************************************
- * 顯示檔案清單：pdf / word / others / all
-*****************************************************/
 function renderFileList(category){
   fileList.innerHTML = '';
   let filtered = currentFileList.filter(f=>{
@@ -374,13 +436,13 @@ function renderFileList(category){
     if(category === 'pdf') return ext === 'pdf';
     if(category === 'word') return ['doc','docx','gdoc'].includes(ext);
     // others
-    return !(['pdf','doc','docx','gdoc'].includes(ext));
+    return !['pdf','doc','docx','gdoc'].includes(ext);
   });
 
   if(filtered.length === 0){
     let li = document.createElement('li');
-    li.textContent = '(無檔案)';
     li.className = 'text-gray-500';
+    li.textContent = '(無檔案)';
     fileList.appendChild(li);
   } else {
     filtered.forEach(f=>{
@@ -392,124 +454,131 @@ function renderFileList(category){
 }
 
 /*****************************************************
- * 簽名畫布初始化
+ * 簽名畫布：init & clear
 *****************************************************/
 function initSignatureCanvas(){
   const c = signature;
   const ctx = c.getContext('2d');
-  let drawing = false, lastX=0, lastY=0;
+  let drawing=false, lastX=0,lastY=0;
 
   function resizeCanvas(){
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = window.devicePixelRatio||1;
     const w = c.offsetWidth;
-    // 手機與桌機比例 (可自行微調)
-    let ratio = window.innerWidth < 768 ? 0.55 : 0.33;
-    const h = Math.floor(w * ratio);
-
-    c.width = w * dpr;
-    c.height = h * dpr;
-    c.style.height = h + 'px';
-    c.style.width = w + 'px';
+    let ratio = window.innerWidth<768 ? 0.55 : 0.33;
+    const h = Math.floor(w*ratio);
+    c.width = w*dpr;
+    c.height = h*dpr;
+    c.style.height = h+'px';
+    c.style.width = w+'px';
     ctx.setTransform(1,0,0,1,0,0);
-    ctx.scale(dpr, dpr);
+    ctx.scale(dpr,dpr);
   }
   resizeCanvas();
-  window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('resize',resizeCanvas);
 
   function getOffset(e){
     const rect = c.getBoundingClientRect();
     if(e.touches?.[0]) {
-      return [ e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top ];
+      return [ e.touches[0].clientX-rect.left, e.touches[0].clientY-rect.top ];
     } else {
       return [ e.offsetX, e.offsetY ];
     }
   }
   function startDraw(e){
-    drawing = true;
-    let [x, y] = getOffset(e);
+    drawing=true;
+    let [x,y]=getOffset(e);
     ctx.beginPath();
-    ctx.moveTo(x, y);
-    [lastX, lastY] = [x, y];
+    ctx.moveTo(x,y);
+    [lastX,lastY]=[x,y];
   }
   function draw(e){
-    if(!drawing) return;
-    let [x, y] = getOffset(e);
-    ctx.lineTo(x, y);
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
+    if(!drawing)return;
+    let [x,y]=getOffset(e);
+    ctx.lineTo(x,y);
+    ctx.strokeStyle='#000';
+    ctx.lineWidth=2;
+    ctx.lineCap='round';
     ctx.stroke();
-    [lastX, lastY] = [x, y];
+    [lastX,lastY]=[x,y];
   }
-  function endDraw(){
-    drawing = false;
-  }
-  c.addEventListener('mousedown', startDraw);
-  c.addEventListener('mousemove', draw);
-  c.addEventListener('mouseup', endDraw);
-  c.addEventListener('mouseleave', endDraw);
+  function endDraw(){ drawing=false; }
 
-  c.addEventListener('touchstart', ev=>{
+  c.addEventListener('mousedown',startDraw);
+  c.addEventListener('mousemove',draw);
+  c.addEventListener('mouseup',endDraw);
+  c.addEventListener('mouseleave',endDraw);
+
+  c.addEventListener('touchstart',ev=>{
     ev.preventDefault();
     startDraw(ev);
-  }, { passive:false });
-  c.addEventListener('touchmove', ev=>{
+  },{passive:false});
+  c.addEventListener('touchmove',ev=>{
     ev.preventDefault();
     draw(ev);
-  }, { passive:false });
-  c.addEventListener('touchend', endDraw);
-}
-
-/*****************************************************
- * 按下送出簽名 → 縮圖後再上傳
-*****************************************************/
-function downscaleCanvas(originalCanvas, scale=0.3){
-  if(window.innerWidth > 768) scale = 0.6; // 桌機
-  const tmp = document.createElement('canvas');
-  const cx = tmp.getContext('2d');
-  tmp.width = originalCanvas.width * scale;
-  tmp.height = originalCanvas.height * scale;
-  cx.drawImage(originalCanvas, 0, 0, tmp.width, tmp.height);
-  return tmp.toDataURL('image/png');
+  },{passive:false});
+  c.addEventListener('touchend',endDraw);
 }
 
 function clearPad(){
   let cx = signature.getContext('2d');
-  cx.clearRect(0, 0, signature.width, signature.height);
+  cx.clearRect(0,0,signature.width,signature.height);
+}
+
+/*****************************************************
+ * 送出簽名
+*****************************************************/
+function downscaleCanvas(originalCanvas, scale=0.3){
+  if(window.innerWidth>768) scale=0.6; // 桌機
+  const tmp = document.createElement('canvas');
+  const cx = tmp.getContext('2d');
+  tmp.width = originalCanvas.width*scale;
+  tmp.height = originalCanvas.height*scale;
+  cx.drawImage(originalCanvas,0,0,tmp.width,tmp.height);
+  return tmp.toDataURL('image/png');
 }
 
 function submitSignature(){
-  if(isSubmitting) return;
+  if(isSubmitting)return;
   toggleSubmitLoading(true);
-  let dataUrl = downscaleCanvas(signature);
 
-  fetch(api+'/', {
+  // 取得目前部門對應 folderId
+  if(currentDeptIndex<0 || currentDeptIndex>=folderIds.length){
+    showToast('❌ 未選到部門資料夾', false);
+    toggleSubmitLoading(false);
+    return;
+  }
+  const fid = folderIds[currentDeptIndex];
+
+  // 壓縮簽名
+  const dataUrl = downscaleCanvas(signature);
+
+  fetch(api+'/',{
     method:'POST',
-    headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams({
       action:'generateSignedPdf',
       dataUrl,
-      folderId,
+      folderId: fid,
       fileList: JSON.stringify(currentFileList)
     })
   })
-    .then(r=>r.json())
-    .then(data=>{
-      toggleSubmitLoading(false);
-      if(data.success){
-        result.textContent = '✅ PDF 產出成功！';
-        showToast('✅ PDF 產出成功！');
-        loadFileList();
-      } else {
-        result.textContent = data.message;
-        showToast(data.message, false);
-      }
-    })
-    .catch(e=>{
-      toggleSubmitLoading(false);
-      result.textContent = '❌ 發生錯誤';
-      showToast('❌ 發送錯誤，請稍後再試', false);
-    });
+  .then(r=>r.json())
+  .then(data=>{
+    toggleSubmitLoading(false);
+    if(data.success){
+      result.textContent='✅ PDF 產出成功！';
+      showToast('✅ PDF 產出成功！');
+      loadFileList(); // 簽完後重新抓檔案清單(或更新狀態)
+    } else {
+      result.textContent=data.message;
+      showToast(data.message,false);
+    }
+  })
+  .catch(e=>{
+    toggleSubmitLoading(false);
+    result.textContent='❌ 發生錯誤';
+    showToast('❌ 發送錯誤，請稍後再試',false);
+  });
 }
 
 function logout(){
@@ -517,26 +586,25 @@ function logout(){
 }
 
 /*****************************************************
- * 按鈕防重複點擊
+ * 防重複點擊
 *****************************************************/
 function toggleSubmitLoading(loading){
-  let btn = document.getElementById('submitBtn');
-  if(!btn) return;
+  let btn=document.getElementById('submitBtn');
+  if(!btn)return;
   if(loading){
-    isSubmitting = true;
-    btn.disabled = true;
-    btn.textContent = '處理中...';
+    isSubmitting=true;
+    btn.disabled=true;
+    btn.textContent='處理中...';
     btn.classList.remove('hover:bg-indigo-500');
     btn.classList.add('bg-gray-400');
   } else {
-    isSubmitting = false;
-    btn.disabled = false;
-    btn.textContent = '送出簽名';
+    isSubmitting=false;
+    btn.disabled=false;
+    btn.textContent='送出簽名';
     btn.classList.remove('bg-gray-400');
     btn.classList.add('bg-indigo-600','hover:bg-indigo-500');
   }
 }
 </script>
-
 </body>
 </html>
