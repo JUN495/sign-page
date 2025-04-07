@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>數位簽核系統</title>
+  <title>數資中心資料確認系統</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC&display=swap" rel="stylesheet">
   <style>
@@ -52,7 +52,7 @@
 <body class="flex items-center justify-center p-6">
   <div class="glass w-full max-w-2xl p-8 rounded-2xl space-y-6">
     <h1 class="text-3xl font-bold text-center text-indigo-700 drop-shadow">
-      📝 數位簽核系統
+      📄 數資中心資料確認系統
     </h1>
 
     <!-- 登入畫面 -->
@@ -102,9 +102,9 @@
 
     <!-- 主畫面 -->
     <div id="mainView" class="hidden space-y-6">
-      <!-- 新增一行顯示：部門、職稱、姓名、登出 -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-        <div>
+        <!-- 同一行顯示：部門、職稱、姓名 -->
+        <div class="flex flex-wrap items-center gap-4">
           <p class="text-gray-800 font-semibold">
             部門：<span id="dept" class="text-blue-600"></span>
           </p>
